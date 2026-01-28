@@ -108,6 +108,51 @@ body {
   margin-bottom: 1rem;
 }
 
+/* Harper Error Decorations */
+.harper-error {
+  border-bottom: 2px wavy #ef4444 !important;
+  position: relative !important;
+  transition: background-color 0.2s !important;
+  display: inline !important;
+  pointer-events: auto !important;
+}
+
+.harper-error:hover {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.harper-error[data-category="Spelling"] {
+  border-bottom-color: #ef4444 !important; /* Red */
+}
+
+.harper-error[data-category="Typo"] {
+  border-bottom-color: #f97316 !important; /* Orange */
+}
+
+.harper-error[data-category="Grammar"] {
+  border-bottom-color: #3b82f6 !important; /* Blue */
+}
+
+.harper-error[data-category="Style"] {
+  border-bottom-color: #eab308 !important; /* Yellow */
+}
+
+.harper-error[data-category="WordChoice"] {
+  border-bottom-color: #22c55e !important; /* Green */
+}
+
+.harper-error[data-category="Punctuation"] {
+  border-bottom-color: #a855f7 !important; /* Purple */
+}
+
+/* Ensure ProseMirror doesn't hide our decorations */
+.ProseMirror span.harper-error {
+  border-bottom: 3px solid #ef4444 !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+  padding-bottom: 1px !important;
+}
+
 /* Custom scrollbar for the editor area */
 .editor-container::-webkit-scrollbar {
   width: 12px;
