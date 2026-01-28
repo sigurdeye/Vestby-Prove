@@ -31,6 +31,11 @@ Dette er en **Zero-Knowledge** applikasjon.
 
 Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE).
 
+## Veien videre (TODO)
+
+*   **Grammatikk og avansert stavekontroll:** Planlegge integrasjon av [Harper](https://github.com/elijah-potter/harper) (et åpent, lokalt alternativ til Grammarly). Målet er å få dette til å fungere 100% lokalt inne i et SEB-miljø uten behov for internettilgang.
+*   **Plattformtesting:** Verifisere at verktøyet og eksporten fungerer optimalt på macOS (foreløpig kun testet på Windows).
+
 ---
 
 Laget med ❤️ for en enklere skolehverdag.
