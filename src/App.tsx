@@ -123,19 +123,10 @@ const App = () => {
       setWordCount(words);
       
       setIsSaved(false);
-      // Auto-save indicator
       const saveTimeout = setTimeout(() => setIsSaved(true), 1000);
-
-      // Debounced Harper linting
-      const lintTimeout = setTimeout(() => {
-        // The worker is handled by the extension, but we can't easily trigger it from here
-        // without modifying the extension to accept a trigger or just letting it handle it.
-        // Actually, the extension's `update` hook in the view is called on every transaction.
-      }, 500);
 
       return () => {
         clearTimeout(saveTimeout);
-        clearTimeout(lintTimeout);
       };
     },
     onCreate: ({ editor }) => {
@@ -145,39 +136,65 @@ const App = () => {
     },
     editorProps: {
       attributes: {
-        spellcheck: 'false', // Disable browser spellcheck when using Harper
+        spellcheck: 'false',
         class: 'font-opendyslexic outline-none',
       },
     },
   });
 
-  // useMemo ensures we only recalculate when dependencies change
-  // and safely handles the 'editor' initialization
+  // Helper to map Harper character offsets to ProseMirror positions
+  const getPos = useCallback((charOffset: number, isEnd = false) => {
+    if (!editor) return 0;
+    const { doc } = editor.state;
+    let currentTextPos = 0;
+    let targetPos = -1;
+
+    doc.descendants((node, pos) => {
+      if (targetPos !== -1) return false;
+      if (node.isText) {
+        const nodeText = node.text || "";
+        const nodeEnd = currentTextPos + nodeText.length;
+
+        if (isEnd) {
+          if (charOffset > currentTextPos && charOffset <= nodeEnd) {
+            targetPos = pos + (charOffset - currentTextPos);
+          }
+        } else {
+          if (charOffset >= currentTextPos && charOffset < nodeEnd) {
+            targetPos = pos + (charOffset - currentTextPos);
+          }
+        }
+        currentTextPos = nodeEnd;
+      }
+      return true;
+    });
+
+    return targetPos !== -1 ? targetPos : charOffset + 1;
+  }, [editor]);
+
   const filteredResults = React.useMemo(() => {
+    if (!editor) return [];
     return lintResults.filter(result => {
-      // Filter out specific "dumb" advice
       if (result.category === 'Capitalization' && result.suggestions.includes('IDE')) return false;
       
-      // Filter out ignored spans
-      if (!editor) return true;
-      
+      const start = getPos(result.span.start);
+      const end = getPos(result.span.end, true);
+      const currentText = editor.state.doc.textBetween(start, end);
+
       return !ignoredSpans.some(ignored => 
         ignored.start === result.span.start && 
         ignored.end === result.span.end &&
-        ignored.text === editor.state.doc.textBetween(result.span.start + 1, result.span.end + 1)
+        ignored.text === currentText
       );
     });
-  }, [lintResults, ignoredSpans, editor]);
+  }, [lintResults, ignoredSpans, editor, getPos]);
 
-  // Track which error is currently "focused" by clicking on the text
   const [focusedErrorKey, setFocusedErrorKey] = useState<string | null>(null);
 
-  // Update editor decorations when filtered results change
   useEffect(() => {
     if (editor && editor.view) {
       const { state } = editor;
       
-      // If there are no results, we MUST clear all decorations
       if (filteredResults.length === 0) {
         const tr = state.tr.setMeta(harperKey, {
           type: 'set-decorations',
@@ -190,7 +207,7 @@ const App = () => {
       const decorations: Decoration[] = [];
       
       filteredResults.forEach((result: HarperLintResult) => {
-        let color = '#ef4444'; // default red
+        let color = '#ef4444';
         if (result.category === 'Typo') color = '#f97316';
         if (result.category === 'Grammar') color = '#3b82f6';
         if (result.category === 'Style') color = '#eab308';
@@ -199,33 +216,13 @@ const App = () => {
         const errorKey = `${result.span.start}-${result.span.end}`;
         const isFocused = focusedErrorKey === errorKey;
 
-        // Robust position mapping
-        let currentTextPos = 0;
-        let startPos = -1;
-        let endPos = -1;
-
-        state.doc.descendants((node, pos) => {
-          if (node.isText) {
-            const nodeText = node.text || "";
-            const nodeEnd = currentTextPos + nodeText.length;
-
-            if (startPos === -1 && result.span.start >= currentTextPos && result.span.start < nodeEnd) {
-              startPos = pos + (result.span.start - currentTextPos);
-            }
-            if (endPos === -1 && result.span.end > currentTextPos && result.span.end <= nodeEnd) {
-              endPos = pos + (result.span.end - currentTextPos);
-            }
-            currentTextPos = nodeEnd;
-          } else if (node.isBlock) {
-            if (currentTextPos > 0) currentTextPos += 0;
-          }
-          return true;
-        });
+        const startPos = getPos(result.span.start);
+        const endPos = getPos(result.span.end, true);
 
         if (startPos !== -1 && endPos !== -1) {
           decorations.push(Decoration.inline(startPos, endPos, {
             class: cn('harper-error', isFocused && 'harper-error-focused'),
-            style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '20'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important;`
+            style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '20'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important;`,
           }));
         }
       });
@@ -236,7 +233,7 @@ const App = () => {
       });
       editor.view.dispatch(tr);
     }
-  }, [filteredResults, editor, focusedErrorKey]);
+  }, [filteredResults, editor, focusedErrorKey, getPos]);
 
   useEffect(() => {
     if (editor) {
@@ -256,23 +253,17 @@ const App = () => {
           properties: {},
           children: editor.getJSON().content?.map((node: any) => {
             let alignment = AlignmentType.LEFT;
-            
-            // Standard academic default for Word is 14pt (28 half-points)
-            // Anything else is treated as a specific override
             const baseFontSize = 14;
 
             return new DocxParagraph({
               alignment,
               spacing: { 
-                line: 360, // 1.5 line spacing
+                line: 360,
                 before: 0,
                 after: 120 
               },
               children: node.content?.map((child: any) => {
-                // Tiptap might store fontSize in different places depending on the node structure
                 let markSize = child.marks?.find((m: any) => m.type === 'fontSize')?.attrs?.fontSize;
-                
-                // Fallback: check if it's in a generic textStyle mark
                 if (!markSize) {
                   markSize = child.marks?.find((m: any) => m.type === 'textStyle')?.attrs?.fontSize;
                 }
@@ -504,16 +495,16 @@ const App = () => {
               ) : (
                 filteredResults.map((result, idx) => (
                     <div 
+                      key={idx}
                       className={cn(
                         "group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all bg-white cursor-pointer",
                         focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm"
                       )}
                       onClick={() => {
                         setFocusedErrorKey(`${result.span.start}-${result.span.end}`);
-                        editor.chain().focus().setTextSelection({
-                          from: result.span.start + 1,
-                          to: result.span.end + 1
-                        }).run();
+                        const start = getPos(result.span.start);
+                        const end = getPos(result.span.end, true);
+                        editor.chain().focus().setTextSelection({ from: start, to: end }).run();
                       }}
                     >
                     <div className="flex justify-between items-center p-3 bg-white group-hover:bg-blue-50/30 transition-colors">
@@ -551,11 +542,9 @@ const App = () => {
                                     ...prev,
                                     [key]: ((prev[key] || 0) + 1) % result.suggestions.length
                                   }));
-                                  // Highlight the word in the editor
-                                  editor.chain().focus().setTextSelection({
-                                    from: result.span.start + 1,
-                                    to: result.span.end + 1
-                                  }).run();
+                                  const start = getPos(result.span.start);
+                                  const end = getPos(result.span.end, true);
+                                  editor.chain().focus().setTextSelection({ from: start, to: end }).run();
                                 }}
                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md border border-gray-200 hover:border-blue-100 transition-all shadow-sm bg-white"
                                 title="Next suggestion"
@@ -569,10 +558,9 @@ const App = () => {
                                 e.stopPropagation();
                                 const currentIndex = suggestionIndices[`${result.span.start}-${result.span.end}`] || 0;
                                 const suggestion = result.suggestions[currentIndex];
-                                editor.chain().focus().insertContentAt({
-                                  from: result.span.start + 1,
-                                  to: result.span.end + 1
-                                }, suggestion).run();
+                                const start = getPos(result.span.start);
+                                const end = getPos(result.span.end, true);
+                                editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
                               }}
                               className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-md border border-green-200 hover:bg-green-100 transition-all font-bold shadow-sm min-w-[60px] text-center"
                             >
@@ -584,10 +572,12 @@ const App = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            const start = getPos(result.span.start);
+                            const end = getPos(result.span.end, true);
                             setIgnoredSpans(prev => [...prev, {
                               start: result.span.start,
                               end: result.span.end,
-                              text: editor.state.doc.textBetween(result.span.start + 1, result.span.end + 1)
+                              text: editor.state.doc.textBetween(start, end)
                             }]);
                           }}
                           className="text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors font-medium ml-auto"
