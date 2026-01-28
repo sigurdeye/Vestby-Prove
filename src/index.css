@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/fonts/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/fonts/OpenDyslexic-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/fonts/OpenDyslexic-Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@theme {
+  --font-opendyslexic: "OpenDyslexic", sans-serif;
+  --font-arial: "Arial", sans-serif;
+  --font-verdana: "Verdana", sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #f3f3f3;
+  color: #111827; /* text-gray-900 */
+  overflow-y: auto; /* Changed from hidden to auto */
+}
+
+.ProseMirror {
+  min-height: 1056px;
+  outline: none;
+  padding: 2cm 2.5cm;
+  background-color: white;
+  background-image: linear-gradient(to bottom, transparent 1122px, #e5e7eb 1122px, #e5e7eb 1124px, transparent 1124px);
+  background-size: 100% 1124px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+  width: 100%; /* Changed to 100% because parent now handles the 210mm width */
+  line-height: 1.5;
+  font-size: 14px; /* Base font size for new text */
+  margin-top: 2rem;
+  margin-bottom: 20rem;
+  position: relative;
+}
+
+/* We add labels for up to 10 pages */
+.page-label {
+  position: absolute;
+  right: -5rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-family: sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+
+.ProseMirror p {
+  margin-bottom: 1rem;
+}
+
+.ProseMirror h1 {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Custom scrollbar for the editor area */
+.editor-container::-webkit-scrollbar {
+  width: 12px;
+}
+
+.editor-container::-webkit-scrollbar-track {
+  background: #f3f3f3;
+}
+
+.editor-container::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 6px;
+  border: 3px solid #f3f3f3;
+}

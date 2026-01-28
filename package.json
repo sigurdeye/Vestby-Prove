@@ -1,0 +1,51 @@
+{
+  "name": "vestbyprove",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.7.5",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tiptap/extension-bubble-menu": "^3.18.0",
+    "@tiptap/extension-bullet-list": "^3.18.0",
+    "@tiptap/extension-font-family": "^3.18.0",
+    "@tiptap/extension-heading": "^3.18.0",
+    "@tiptap/extension-history": "^3.18.0",
+    "@tiptap/extension-list-item": "^3.18.0",
+    "@tiptap/extension-ordered-list": "^3.18.0",
+    "@tiptap/extension-paragraph": "^3.18.0",
+    "@tiptap/extension-text": "^3.18.0",
+    "@tiptap/extension-text-style": "^3.18.0",
+    "@tiptap/extension-typography": "^3.18.0",
+    "@tiptap/extension-underline": "^3.18.0",
+    "@tiptap/react": "^3.18.0",
+    "@tiptap/starter-kit": "^3.18.0",
+    "clsx": "^2.1.1",
+    "docx": "^9.5.1",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.2.4"
+  }
+}
