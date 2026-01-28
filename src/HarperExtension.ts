@@ -31,6 +31,7 @@ export const HarperExtension = Extension.create<HarperOptions>({
     const { onResults } = this.options;
     let worker: Worker | null = null;
     let lastText = '';
+    let version = 0;
 
     return [
       new Plugin({
@@ -60,7 +61,13 @@ export const HarperExtension = Extension.create<HarperOptions>({
           let debounceTimeout: any = null;
 
           worker.onmessage = (e) => {
-            const { type, results, error } = e.data;
+            const { type, results, error, version: resultVersion } = e.data;
+            
+            // Only process results if they match the current document version
+            if (resultVersion !== version) {
+              return;
+            }
+
             if (type === 'error') {
               console.error('Harper Worker Error:', error);
               return;
@@ -69,8 +76,6 @@ export const HarperExtension = Extension.create<HarperOptions>({
               if (onResults) {
                 onResults(results);
               }
-              // We no longer set decorations here directly, 
-              // as App.tsx handles the filtered results.
             }
           };
 
@@ -81,10 +86,12 @@ export const HarperExtension = Extension.create<HarperOptions>({
 
               if (text !== lastText) {
                 lastText = text;
+                version++;
+                const currentVersion = version;
                 
                 if (debounceTimeout) clearTimeout(debounceTimeout);
                 debounceTimeout = setTimeout(() => {
-                  worker?.postMessage({ type: 'lint', text });
+                  worker?.postMessage({ type: 'lint', text, version: currentVersion });
                 }, 500);
               }
             },

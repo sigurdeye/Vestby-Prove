@@ -20,20 +20,18 @@ async function init() {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { text, type } = e.data;
+  const { text, type, version } = e.data;
 
   if (type === 'lint') {
     await init();
     if (linter) {
       try {
-        console.log("Linting text:", text);
         if (!text || text.trim().length === 0) {
-          self.postMessage({ type: 'results', results: [] });
+          self.postMessage({ type: 'results', results: [], version });
           return;
         }
         
         const lints = await linter.lint(text);
-        console.log("Raw lints from Harper:", lints);
         
         // Map Harper's internal lint objects to a serializable format
         const serializableResults = lints.map(lint => {
@@ -66,11 +64,10 @@ self.onmessage = async (e: MessageEvent) => {
           };
         });
 
-        console.log("Sending serializable results:", serializableResults);
-        self.postMessage({ type: 'results', results: serializableResults });
+        self.postMessage({ type: 'results', results: serializableResults, version });
       } catch (error) {
         console.error('Harper lint error:', error);
-        self.postMessage({ type: 'error', error: String(error) });
+        self.postMessage({ type: 'error', error: String(error), version });
       }
     } else {
       console.warn("Linter not initialized yet.");
