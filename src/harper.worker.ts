@@ -1,3 +1,9 @@
+/**
+ * This file is part of Vestby Prøve.
+ * It utilizes harper.js (https://github.com/elijah-potter/harper), 
+ * which is licensed under the Apache License 2.0.
+ */
+
 import * as harper from "harper.js";
 
 let linter: harper.LocalLinter | null = null;

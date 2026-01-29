@@ -1,3 +1,9 @@
+/**
+ * This file is part of Vestby Prøve.
+ * It integrates Harper (https://github.com/elijah-potter/harper), 
+ * which is licensed under the Apache License 2.0.
+ */
+
 import { Extension } from '@tiptap/core';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
