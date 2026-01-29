@@ -90,6 +90,32 @@ const App = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [suggestionIndices, setSuggestionIndices] = useState<Record<string, number>>({});
 
+  const simplifyMessage = useCallback((result: HarperLintResult) => {
+    const { category, message, suggestions } = result;
+    
+    // Mapping technical terms to friendly Norwegian hints
+    const hints: Record<string, string> = {
+      "canonical spelling is all-caps": "Sjekk om dette ordet skal ha store bokstaver, eller om det er en skrivefeil.",
+      "passive voice": "Prøv å skrive mer direkte (hvem gjør noe?).",
+      "determiner": "Sjekk om du mangler et ord som 'en', 'ei' eller 'et'.",
+      "split infinitive": "Prøv å ikke sette ord mellom 'å' og verbet.",
+      "verbose": "Denne setningen er litt lang. Kan den gjøres kortere?",
+    };
+
+    // Check for specific technical phrases in the message
+    for (const [key, hint] of Object.entries(hints)) {
+      if (message.toLowerCase().includes(key)) return hint;
+    }
+
+    // Category-based generic hints (Pedagogical approach)
+    if (category === 'Spelling') return "Mente du en av disse?";
+    if (category === 'Capitalization') return "Husk stor bokstav i starten av setninger og ved navn.";
+    if (category === 'Punctuation') return "Sjekk om du mangler et tegn her (punktum, komma osv.).";
+    if (category === 'Grammar') return "Sjekk grammatikken i denne setningen.";
+    
+    return message; // Fallback
+  }, []);
+
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 200));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 50));
 
@@ -175,6 +201,9 @@ const App = () => {
   const filteredResults = React.useMemo(() => {
     if (!editor) return [];
     return lintResults.filter(result => {
+      // Hide style and word choice suggestions to focus on core grammar/spelling
+      if (result.category === 'Style' || result.category === 'WordChoice') return false;
+      
       if (result.category === 'Capitalization' && result.suggestions.includes('IDE')) return false;
       
       const start = getPos(result.span.start);
@@ -222,7 +251,7 @@ const App = () => {
         if (startPos !== -1 && endPos !== -1) {
           decorations.push(Decoration.inline(startPos, endPos, {
             class: cn('harper-error', isFocused && 'harper-error-focused'),
-            style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '20'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important;`,
+            style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '15'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important; transition: background-color 0.2s ease;`,
           }));
         }
       });
@@ -234,6 +263,43 @@ const App = () => {
       editor.view.dispatch(tr);
     }
   }, [filteredResults, editor, focusedErrorKey, getPos]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      const { from } = editor.state.selection;
+      
+      // Find if the cursor is within any error span
+      const result = filteredResults.find(r => {
+        const start = getPos(r.span.start);
+        const end = getPos(r.span.end, true);
+        // We check if the cursor (from) is within the start and end positions
+        return from >= start && from <= end;
+      });
+
+      if (result) {
+        const newKey = `${result.span.start}-${result.span.end}`;
+        if (focusedErrorKey !== newKey) {
+          setFocusedErrorKey(newKey);
+        }
+      }
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+    };
+  }, [editor, filteredResults, getPos, focusedErrorKey]);
+
+  useEffect(() => {
+    if (focusedErrorKey && showSidebar) {
+      const element = document.querySelector(`[data-error-key="${focusedErrorKey}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [focusedErrorKey, showSidebar]);
 
   useEffect(() => {
     if (editor) {
@@ -286,7 +352,7 @@ const App = () => {
     });
 
     const blob = await Packer.toBlob(doc);
-    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`;
+    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase();
     saveAs(blob, filename || 'vestby-prove.docx');
     setShowExportModal(false);
   };
@@ -496,9 +562,10 @@ const App = () => {
                 filteredResults.map((result, idx) => (
                     <div 
                       key={idx}
+                      data-error-key={`${result.span.start}-${result.span.end}`}
                       className={cn(
                         "group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all bg-white cursor-pointer",
-                        focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm"
+                        focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm bg-blue-50/20"
                       )}
                       onClick={() => {
                         setFocusedErrorKey(`${result.span.start}-${result.span.end}`);
@@ -520,55 +587,15 @@ const App = () => {
                           focusedErrorKey === `${result.span.start}-${result.span.end}` && "ring-2 ring-offset-1 ring-blue-400"
                         )} />
                         <span className="text-sm font-bold text-gray-700">
-                          {result.category === 'WordChoice' ? 'Word Choice' : result.category}
+                          {result.category === 'Spelling' ? 'Stavefeil' : 
+                           result.category === 'Grammar' ? 'Grammatikk' :
+                           result.category === 'Capitalization' ? 'Stor bokstav' :
+                           result.category === 'Punctuation' ? 'Tegnsetting' :
+                           result.category === 'WordChoice' ? 'Ordvalg' : 
+                           result.category}
                         </span>
                       </div>
-                      <ChevronDown size={16} className="text-gray-400 group-hover:text-blue-500 transition-colors" />
-                    </div>
-                    
-                    <div className="px-3 pb-3 pt-1">
-                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-                        {result.message}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {result.suggestions.length > 0 && (
-                          <>
-                            {result.suggestions.length > 1 && (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const key = `${result.span.start}-${result.span.end}`;
-                                  setSuggestionIndices(prev => ({
-                                    ...prev,
-                                    [key]: ((prev[key] || 0) + 1) % result.suggestions.length
-                                  }));
-                                  const start = getPos(result.span.start);
-                                  const end = getPos(result.span.end, true);
-                                  editor.chain().focus().setTextSelection({ from: start, to: end }).run();
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md border border-gray-200 hover:border-blue-100 transition-all shadow-sm bg-white"
-                                title="Next suggestion"
-                              >
-                                <Redo size={16} />
-                              </button>
-                            )}
-
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const currentIndex = suggestionIndices[`${result.span.start}-${result.span.end}`] || 0;
-                                const suggestion = result.suggestions[currentIndex];
-                                const start = getPos(result.span.start);
-                                const end = getPos(result.span.end, true);
-                                editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
-                              }}
-                              className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-md border border-green-200 hover:bg-green-100 transition-all font-bold shadow-sm min-w-[60px] text-center"
-                            >
-                              {result.suggestions[suggestionIndices[`${result.span.start}-${result.span.end}`] || 0]}
-                            </button>
-                          </>
-                        )}
-                        
+                      <div className="flex items-center gap-2">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -580,10 +607,36 @@ const App = () => {
                               text: editor.state.doc.textBetween(start, end)
                             }]);
                           }}
-                          className="text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors font-medium ml-auto"
+                          className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-red-100 transition-colors"
                         >
-                          Ignore
+                          Ignorer
                         </button>
+                      </div>
+                    </div>
+                    
+                    <div className="px-3 pb-3 pt-1">
+                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                        {simplifyMessage(result)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                            {result.suggestions.length > 0 && (
+                              <div className="flex flex-wrap gap-2 w-full">
+                                {result.suggestions.slice(0, 3).map((suggestion, sIdx) => (
+                                  <button
+                                    key={sIdx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const start = getPos(result.span.start);
+                                      const end = getPos(result.span.end, true);
+                                    editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
+                                  }}
+                                  className="flex-1 text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-all font-bold shadow-sm text-center"
+                                >
+                                  {suggestion}
+                                </button>
+                                ))}
+                              </div>
+                            )}
                       </div>
                     </div>
                   </div>
@@ -618,10 +671,10 @@ const App = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Navn</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="Ditt fulle navn"
                   value={exportData.name}
-                  onChange={(e) => setExportData({ ...exportData, name: e.target.value })}
+                  onChange={(e) => setExportData({ ...exportData, name: e.target.value.toLowerCase() })}
                   autoFocus
                 />
               </div>
@@ -629,20 +682,20 @@ const App = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. 10A"
                   value={exportData.class}
-                  onChange={(e) => setExportData({ ...exportData, class: e.target.value })}
+                  onChange={(e) => setExportData({ ...exportData, class: e.target.value.toLowerCase() })}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fag</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. Norsk"
                   value={exportData.subject}
-                  onChange={(e) => setExportData({ ...exportData, subject: e.target.value })}
+                  onChange={(e) => setExportData({ ...exportData, subject: e.target.value.toLowerCase() })}
                 />
               </div>
             </div>
