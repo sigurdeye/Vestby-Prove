@@ -282,6 +282,7 @@ const App = () => {
         const newKey = `${result.span.start}-${result.span.end}`;
         if (focusedErrorKey !== newKey) {
           setFocusedErrorKey(newKey);
+          setShowSidebar(true);
         }
       }
     };
@@ -506,7 +507,7 @@ const App = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden bg-[#f3f3f3]">
+      <div className="flex-1 flex overflow-hidden bg-[#f3f3f3] relative">
         {/* Editor Area */}
         <main className="flex-1 overflow-y-auto pt-8 pb-20">
           <div 
@@ -534,7 +535,7 @@ const App = () => {
 
         {/* Sidebar */}
         {showSidebar && (
-          <aside className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 animate-in slide-in-from-right duration-300">
+          <aside className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 animate-in slide-in-from-right duration-300 absolute right-0 top-0 bottom-0 z-10 shadow-xl">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
               <h2 className="font-bold text-gray-800 flex items-center gap-2">
                 Problems
