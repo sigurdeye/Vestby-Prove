@@ -832,7 +832,7 @@ const App = () => {
                         Filen er lagret!
                       </div>
                       <p className="text-sm font-normal text-green-600">
-                        Du kan nå lukke dette vinduet.
+                        Filen ligger nå i din nedlastingsmappe.
                       </p>
                     </div>
                   ) : (
