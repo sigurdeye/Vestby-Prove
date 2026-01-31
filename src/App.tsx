@@ -6,12 +6,13 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Extension } from '@tiptap/core';
 import Underline from '@tiptap/extension-underline';
 import Typography from '@tiptap/extension-typography';
-import History from '@tiptap/extension-history';
-import BulletList from '@tiptap/extension-bullet-list';
-import OrderedList from '@tiptap/extension-ordered-list';
-import ListItem from '@tiptap/extension-list-item';
-import Paragraph from '@tiptap/extension-paragraph';
-import Text from '@tiptap/extension-text';
+// Remove these if they are causing duplicates
+// import History from '@tiptap/extension-history';
+// import BulletList from '@tiptap/extension-bullet-list';
+// import OrderedList from '@tiptap/extension-ordered-list';
+// import ListItem from '@tiptap/extension-list-item';
+// import Paragraph from '@tiptap/extension-paragraph';
+// import Text from '@tiptap/extension-text';
 import BubbleMenuExtension from '@tiptap/extension-bubble-menu';
 import { 
   Bold, Italic, Underline as UnderlineIcon, 
@@ -142,13 +143,10 @@ const App = () => {
     extensions: [
       StarterKit.configure({
         heading: false,
-        // StarterKit includes Bold, Italic, History, etc.
       }),
       TextStyle,
       FontFamily,
       FontSize,
-      // Underline is NOT in StarterKit, so we keep it here.
-      Underline,
       Typography,
       HarperExtension.configure({
         onResults: (results) => {
@@ -160,7 +158,7 @@ const App = () => {
       }),
     ],
     immediatelyRender: false,
-    shouldRerenderOnTransaction: false, // Optimization to prevent unnecessary re-renders
+    shouldRerenderOnTransaction: false,
     content: (() => {
       try {
         return localStorage.getItem('vestby-prove-content') || '<p></p>';
