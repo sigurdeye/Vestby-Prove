@@ -17,7 +17,8 @@ import {
   Bold, Italic, Underline as UnderlineIcon, 
   List, ListOrdered, 
   Undo, Redo, Download, Info, CheckCircle2, AlertCircle,
-  ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X
+  ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X,
+  Loader2
 } from 'lucide-react';
 import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -84,6 +85,10 @@ const App = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [exportData, setExportData] = useState({ name: '', class: '', subject: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadComplete, setDownloadComplete] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
   const [ignoredSpans, setIgnoredSpans] = useState<{start: number, end: number, text: string}[]>([]);
@@ -108,7 +113,10 @@ const App = () => {
     }
 
     // Category-based generic hints (Pedagogical approach)
-    if (category === 'Spelling') return "Mente du en av disse?";
+    if (category === 'Spelling') {
+      if (suggestions && suggestions.length > 0) return "Mente du en av disse?";
+      return "Er det skrevet riktig?";
+    }
     if (category === 'Capitalization') return "Husk stor bokstav i starten av setninger og ved navn.";
     if (category === 'Punctuation') return "Sjekk om du mangler et tegn her (punktum, komma osv.).";
     if (category === 'Grammar') return "Sjekk grammatikken i denne setningen.";
@@ -311,51 +319,87 @@ const App = () => {
     }
   }, [editor]);
 
-  const handleExport = async () => {
+  const handlePrepareExport = async () => {
     if (!editor) return;
+    setIsGenerating(true);
+    setDownloadUrl(null);
 
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: editor.getJSON().content?.map((node: any) => {
-            let alignment = AlignmentType.LEFT;
-            const baseFontSize = 14;
+    // Fake non-linear loader for better UX
+    await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
 
-            return new DocxParagraph({
-              alignment,
-              spacing: { 
-                line: 360,
-                before: 0,
-                after: 120 
-              },
-              children: node.content?.map((child: any) => {
-                let markSize = child.marks?.find((m: any) => m.type === 'fontSize')?.attrs?.fontSize;
-                if (!markSize) {
-                  markSize = child.marks?.find((m: any) => m.type === 'textStyle')?.attrs?.fontSize;
-                }
+    try {
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: editor.getJSON().content?.map((node: any) => {
+              let alignment = AlignmentType.LEFT;
+              const baseFontSize = 14;
 
-                const finalSize = markSize ? parseInt(markSize.replace('px', '')) : baseFontSize;
+              return new DocxParagraph({
+                alignment,
+                spacing: { 
+                  line: 360,
+                  before: 0,
+                  after: 120 
+                },
+                children: node.content?.map((child: any) => {
+                  let markSize = child.marks?.find((m: any) => m.type === 'fontSize')?.attrs?.fontSize;
+                  if (!markSize) {
+                    markSize = child.marks?.find((m: any) => m.type === 'textStyle')?.attrs?.fontSize;
+                  }
 
-                return new TextRun({
-                  text: child.text || '',
-                  bold: child.marks?.some((m: any) => m.type === 'bold'),
-                  italics: child.marks?.some((m: any) => m.type === 'italic'),
-                  underline: child.marks?.some((m: any) => m.type === 'underline') ? {} : undefined,
-                  size: finalSize * 2,
-                  font: 'Arial',
-                });
-              }) || [new TextRun({ text: "", size: baseFontSize * 2 })],
-            });
-          }) || [],
-        },
-      ],
-    });
+                  const finalSize = markSize ? parseInt(markSize.replace('px', '')) : baseFontSize;
 
-    const blob = await Packer.toBlob(doc);
-    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase();
-    saveAs(blob, filename || 'vestby-prove.docx');
+                  return new TextRun({
+                    text: child.text || '',
+                    bold: child.marks?.some((m: any) => m.type === 'bold'),
+                    italics: child.marks?.some((m: any) => m.type === 'italic'),
+                    underline: child.marks?.some((m: any) => m.type === 'underline') ? {} : undefined,
+                    size: finalSize * 2,
+                    font: 'Arial',
+                  });
+                }) || [new TextRun({ text: "", size: baseFontSize * 2 })],
+              });
+            }) || [],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      setDownloadUrl(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleExportTxt = () => {
+    if (!editor) return;
+    const text = editor.getText();
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const filename = `reservekopi_${exportData.name.replace(/\s+/g, '-') || 'elev'}.txt`.toLowerCase();
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCloseExportModal = () => {
     setShowExportModal(false);
+    setDownloadComplete(false);
+    setCountdown(3);
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
   };
 
   if (!editor) return null;
@@ -370,14 +414,23 @@ const App = () => {
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium shadow-sm whitespace-nowrap"
           >
             <Download size={18} />
-            Lagre som .docx
+            Lagre til Word (.docx)
           </button>
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            {isSaved ? (
-              <><CheckCircle2 size={14} className="text-green-500" /> Lagret</>
-            ) : (
-              <><AlertCircle size={14} className="text-amber-500" /> Lagrer...</>
-            )}
+          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+            <span className="text-gray-400 font-medium">Sikkerhetskopi</span>
+            <div className="flex items-center">
+              {isSaved ? (
+                <div 
+                  className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)] transition-all duration-500" 
+                  title="Alt er lagret lokalt"
+                />
+              ) : (
+                <div 
+                  className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_5px_rgba(251,191,36,0.4)] transition-all duration-500" 
+                  title="Lagrer endringer..."
+                />
+              )}
+            </div>
           </div>
         </div>
 
@@ -509,9 +562,12 @@ const App = () => {
 
       <div className="flex-1 flex overflow-hidden bg-[#f3f3f3] relative">
         {/* Editor Area */}
-        <main className="flex-1 overflow-y-auto pt-8 pb-20">
+        <main className="flex-1 overflow-y-auto pt-8 pb-20 transition-all duration-300">
           <div 
-            className="transition-all duration-200 relative mx-auto"
+            className={cn(
+              "transition-all duration-300 relative",
+              showSidebar ? "ml-[calc(50%-105mm-160px)]" : "mx-auto"
+            )}
             style={{ 
               width: '210mm',
               transform: `scale(${zoom / 100})`, 
@@ -664,9 +720,15 @@ const App = () => {
 
       {/* Export Modal */}
       {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Last ned dokument</h2>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={handleCloseExportModal}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">Lagre besvarelse</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Navn</label>
@@ -675,7 +737,10 @@ const App = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="Ditt fulle navn"
                   value={exportData.name}
-                  onChange={(e) => setExportData({ ...exportData, name: e.target.value.toLowerCase() })}
+                  onChange={(e) => {
+                    setExportData({ ...exportData, name: e.target.value.toLowerCase() });
+                    setDownloadUrl(null);
+                  }}
                   autoFocus
                 />
               </div>
@@ -686,7 +751,10 @@ const App = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. 10A"
                   value={exportData.class}
-                  onChange={(e) => setExportData({ ...exportData, class: e.target.value.toLowerCase() })}
+                  onChange={(e) => {
+                    setExportData({ ...exportData, class: e.target.value.toLowerCase() });
+                    setDownloadUrl(null);
+                  }}
                 />
               </div>
               <div>
@@ -696,23 +764,119 @@ const App = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. Norsk"
                   value={exportData.subject}
-                  onChange={(e) => setExportData({ ...exportData, subject: e.target.value.toLowerCase() })}
+                  onChange={(e) => {
+                    setExportData({ ...exportData, subject: e.target.value.toLowerCase() });
+                    setDownloadUrl(null);
+                  }}
                 />
               </div>
             </div>
-            <div className="flex gap-3 mt-8">
+
+            <div className="mt-8 space-y-3">
+              <div className="space-y-4">
+                {/* Step 1: Prepare */}
+                <div className="relative">
+                  <button
+                    onClick={handlePrepareExport}
+                    disabled={!exportData.name || !exportData.class || !exportData.subject || isGenerating || !!downloadUrl}
+                    className={cn(
+                      "w-full px-4 py-4 rounded-lg transition-all font-medium flex items-center justify-center gap-2 border-2",
+                      !downloadUrl 
+                        ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm" 
+                        : "bg-gray-50 border-gray-200 text-gray-400 cursor-default"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center text-xs border",
+                      !downloadUrl ? "bg-white text-blue-600 border-white" : "bg-gray-200 text-gray-400 border-gray-300"
+                    )}>
+                      1
+                    </div>
+                    {isGenerating ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Gjør klar fil...
+                      </>
+                    ) : downloadUrl ? (
+                      "Filen er klargjort"
+                    ) : (
+                      "Gjør klar Word-fil"
+                    )}
+                    {downloadUrl && <CheckCircle2 size={18} className="text-green-500 ml-auto" />}
+                  </button>
+                </div>
+
+                {/* Arrow indicator */}
+                <div className="flex justify-center -my-2 relative z-10">
+                  <div className={cn(
+                    "bg-white p-1 rounded-full border transition-colors",
+                    downloadUrl ? "text-green-500 border-green-200" : "text-gray-300 border-gray-100"
+                  )}>
+                    <ChevronDown size={20} />
+                  </div>
+                </div>
+
+                {/* Step 2: Download */}
+                <div className="relative">
+                  {!downloadUrl ? (
+                    <div className="w-full px-4 py-4 bg-gray-50 border-2 border-dashed border-gray-200 text-gray-400 rounded-lg font-medium flex items-center justify-center gap-2 opacity-60">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-400 border border-gray-300 flex items-center justify-center text-xs">
+                        2
+                      </div>
+                      Last ned filen
+                    </div>
+                  ) : downloadComplete ? (
+                    <div className="w-full px-4 py-6 bg-green-50 border-2 border-green-500 text-green-700 rounded-lg font-bold flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-300">
+                      <div className="flex items-center gap-2 text-xl">
+                        <CheckCircle2 size={28} className="text-green-600" />
+                        Filen er lagret!
+                      </div>
+                      <p className="text-sm font-normal text-green-600">
+                        Vinduet lukker seg om {countdown}...
+                      </p>
+                    </div>
+                  ) : (
+                    <a
+                      href={downloadUrl}
+                      download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
+                      onClick={() => {
+                        setDownloadComplete(true);
+                        let timer = 3;
+                        const interval = setInterval(() => {
+                          timer -= 1;
+                          setCountdown(timer);
+                          if (timer <= 0) {
+                            clearInterval(interval);
+                            handleCloseExportModal();
+                          }
+                        }, 1000);
+                      }}
+                      className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-white text-green-600 flex items-center justify-center text-xs">
+                        2
+                      </div>
+                      KLIKK HER FOR Å LAGRE
+                      <Download size={20} className="ml-auto" />
+                    </a>
+                  )}
+                </div>
+              </div>
+              
               <button
-                onClick={() => setShowExportModal(false)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                onClick={handleCloseExportModal}
+                className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 transition-colors text-sm mt-2"
               >
                 Avbryt
               </button>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-100">
               <button
-                onClick={handleExport}
-                disabled={!exportData.name || !exportData.class || !exportData.subject}
-                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleExportTxt}
+                className="text-gray-300 hover:text-gray-500 transition-colors text-[10px] uppercase tracking-widest block mx-auto"
               >
-                Last ned
+                Last ned som enkel tekstfil (reservekopi)
               </button>
             </div>
           </div>
