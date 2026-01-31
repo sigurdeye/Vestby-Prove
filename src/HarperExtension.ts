@@ -133,9 +133,13 @@ export const HarperExtension = Extension.create<HarperOptions>({
             destroy() {
               if (debounceTimeout) clearTimeout(debounceTimeout);
               if (initTimeout) clearTimeout(initTimeout);
-              worker?.postMessage({ type: 'dispose' });
-              // Give the worker a moment to dispose before terminating
-              setTimeout(() => worker?.terminate(), 100);
+              if (worker) {
+                worker.postMessage({ type: 'dispose' });
+                // Give the worker a moment to dispose before terminating
+                const w = worker;
+                setTimeout(() => w.terminate(), 100);
+                worker = null;
+              }
             },
           };
         },

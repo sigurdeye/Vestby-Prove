@@ -15,7 +15,9 @@ async function init() {
       // Explicitly pass the binary and dialect to the constructor
       linter = new harper.LocalLinter({
         binary: harper.binary,
-        dialect: harper.Dialect.British, // Trying British as it sometimes has broader matching
+        // Using British as a sensible default for English checks, 
+        // as Harper's Norwegian support is currently limited or handled via general rules.
+        dialect: harper.Dialect.British, 
       });
       await linter.setup();
       console.log("Harper LocalLinter initialized successfully.");

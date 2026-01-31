@@ -112,6 +112,10 @@ const App = () => {
       "determiner": "Sjekk om du mangler et ord som 'en', 'ei' eller 'et'.",
       "split infinitive": "Prøv å ikke sette ord mellom 'å' og verbet.",
       "verbose": "Denne setningen er litt lang. Kan den gjøres kortere?",
+      "unnecessary": "Dette ordet er kanskje ikke nødvendig.",
+      "cliché": "Dette er et fast uttrykk. Kan du si det på en annen måte?",
+      "repeated word": "Du har skrevet dette ordet to ganger på rad.",
+      "multiple spaces": "Du har brukt mer enn ett mellomrom her.",
     };
 
     // Check for specific technical phrases in the message
@@ -166,7 +170,13 @@ const App = () => {
       try {
         localStorage.setItem('vestby-prove-content', content);
       } catch (e) {
-        console.error('Failed to save content to localStorage:', e);
+        if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+          console.error('LocalStorage quota exceeded! Content might not be saved.');
+          // We don't want to panic the student with a big modal, 
+          // but we should at least log it and consider a subtle UI hint if this were a production requirement.
+        } else {
+          console.error('Failed to save content to localStorage:', e);
+        }
       }
       
       const text = editor.getText();
@@ -205,31 +215,41 @@ const App = () => {
     // Optimization: If charOffset is 0, we know it's the start
     if (charOffset === 0 && !isEnd) return 1;
 
-    doc.descendants((node, pos) => {
-      if (targetPos !== -1) return false;
-      if (node.isText) {
-        const nodeText = node.text || "";
-        const nodeEnd = currentTextPos + nodeText.length;
+    try {
+      doc.descendants((node, pos) => {
+        if (targetPos !== -1) return false;
+        if (node.isText) {
+          const nodeText = node.text || "";
+          const nodeEnd = currentTextPos + nodeText.length;
 
-        if (isEnd) {
-          if (charOffset > currentTextPos && charOffset <= nodeEnd) {
-            targetPos = pos + (charOffset - currentTextPos);
+          if (isEnd) {
+            if (charOffset > currentTextPos && charOffset <= nodeEnd) {
+              targetPos = pos + (charOffset - currentTextPos);
+              return false;
+            }
+          } else {
+            if (charOffset >= currentTextPos && charOffset < nodeEnd) {
+              targetPos = pos + (charOffset - currentTextPos);
+              return false;
+            }
           }
-        } else {
-          if (charOffset >= currentTextPos && charOffset < nodeEnd) {
-            targetPos = pos + (charOffset - currentTextPos);
-          }
+          currentTextPos = nodeEnd;
         }
-        currentTextPos = nodeEnd;
-      }
-      return true;
-    });
+        return true;
+      });
+    } catch (e) {
+      console.error('Error during position mapping:', e);
+    }
 
     // If we didn't find the position, return a safe fallback within document bounds
     if (targetPos === -1) {
-      return Math.min(Math.max(1, charOffset + 1), doc.content.size - 1);
+      // Ensure we stay within [1, doc.content.size - 1] to avoid invalid position errors
+      const safePos = Math.min(Math.max(1, charOffset + 1), Math.max(1, doc.content.size - 1));
+      return safePos;
     }
-    return targetPos;
+    
+    // Final safety check for ProseMirror position validity
+    return Math.min(Math.max(1, targetPos), Math.max(1, doc.content.size - 1));
   }, [editor]);
 
   const filteredResults = React.useMemo(() => {
@@ -711,6 +731,8 @@ const App = () => {
                               end: result.span.end,
                               text: editor.state.doc.textBetween(start, end)
                             }]);
+                            // Return focus to editor after ignoring
+                            setTimeout(() => editor.chain().focus().run(), 10);
                           }}
                           className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-red-100 transition-colors"
                         >
@@ -734,6 +756,8 @@ const App = () => {
                                       const start = getPos(result.span.start);
                                       const end = getPos(result.span.end, true);
                                     editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
+                                    // Ensure focus is back in the editor after applying suggestion
+                                    setTimeout(() => editor.chain().focus().run(), 10);
                                   }}
                                   className="flex-1 text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-all font-bold shadow-sm text-center"
                                 >
