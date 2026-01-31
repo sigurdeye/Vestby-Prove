@@ -832,7 +832,7 @@ const App = () => {
                         Filen er lagret!
                       </div>
                       <p className="text-sm font-normal text-green-600">
-                        Vinduet lukker seg om {countdown}...
+                        Du kan nå lukke dette vinduet.
                       </p>
                     </div>
                   ) : (
@@ -841,15 +841,6 @@ const App = () => {
                       download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
                       onClick={() => {
                         setDownloadComplete(true);
-                        let timer = 3;
-                        const interval = setInterval(() => {
-                          timer -= 1;
-                          setCountdown(timer);
-                          if (timer <= 0) {
-                            clearInterval(interval);
-                            handleCloseExportModal();
-                          }
-                        }, 1000);
                       }}
                       className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
                     >
