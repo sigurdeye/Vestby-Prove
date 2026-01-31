@@ -142,12 +142,12 @@ const App = () => {
     extensions: [
       StarterKit.configure({
         heading: false,
-        // The Underline extension is sometimes included in other kits or 
-        // can cause duplicate warnings if not handled carefully in Tiptap 3.
+        // StarterKit includes Bold, Italic, History, etc.
       }),
       TextStyle,
       FontFamily,
       FontSize,
+      // Underline is NOT in StarterKit, so we keep it here.
       Underline,
       Typography,
       HarperExtension.configure({
@@ -160,6 +160,7 @@ const App = () => {
       }),
     ],
     immediatelyRender: false,
+    shouldRerenderOnTransaction: false, // Optimization to prevent unnecessary re-renders
     content: (() => {
       try {
         return localStorage.getItem('vestby-prove-content') || '<p></p>';
