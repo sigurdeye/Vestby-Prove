@@ -94,6 +94,7 @@ const App = () => {
   const [ignoredSpans, setIgnoredSpans] = useState<{start: number, end: number, text: string}[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [isSpellingEnabled, setIsSpellingEnabled] = useState(true);
 
   // Handle auto-save status with proper cleanup
   useEffect(() => {
@@ -255,7 +256,7 @@ const App = () => {
   }, [editor]);
 
   const filteredResults = React.useMemo(() => {
-    if (!editor) return [];
+    if (!editor || !isSpellingEnabled) return [];
     return lintResults.filter(result => {
       // Hide style and word choice suggestions to focus on core grammar/spelling
       if (result.category === 'Style' || result.category === 'WordChoice') return false;
@@ -272,7 +273,7 @@ const App = () => {
         ignored.text === currentText
       );
     });
-  }, [lintResults, ignoredSpans, editor, getPos]);
+  }, [lintResults, ignoredSpans, editor, getPos, isSpellingEnabled]);
 
   const [focusedErrorKey, setFocusedErrorKey] = useState<string | null>(null);
 
@@ -780,8 +781,26 @@ const App = () => {
 
       {/* Footer Info */}
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200 px-6 py-2 flex justify-between items-center text-sm text-gray-600 z-20">
-        <div>
-          Antall ord: <span className="font-bold">{wordCount}</span>
+        <div className="flex items-center gap-6">
+          <div>
+            Antall ord: <span className="font-bold">{wordCount}</span>
+          </div>
+          <div className="h-4 w-[1px] bg-gray-300" />
+          <button
+            onClick={() => setIsSpellingEnabled(!isSpellingEnabled)}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1 rounded transition-colors",
+              isSpellingEnabled 
+                ? "text-blue-600 hover:bg-blue-50" 
+                : "text-gray-400 hover:bg-gray-100"
+            )}
+            title={isSpellingEnabled ? "Deaktiver stavekontroll" : "Aktiver stavekontroll"}
+          >
+            <Search size={14} className={cn(!isSpellingEnabled && "opacity-50")} />
+            <span className="font-medium">
+              {isSpellingEnabled ? "Stavekontroll: På" : "Stavekontroll: Av"}
+            </span>
+          </button>
         </div>
         <button 
           onClick={() => setShowAboutModal(true)}

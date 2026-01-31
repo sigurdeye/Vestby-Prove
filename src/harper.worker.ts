@@ -1,31 +1,46 @@
 /**
- * This file is part of Vestby Prøve.
+ * This file is part of Vestby PrÃ¸ve.
  * It utilizes harper.js (https://github.com/elijah-potter/harper), 
  * which is licensed under the Apache License 2.0.
  */
 
 import * as harper from "harper.js";
 
-let linter: harper.LocalLinter | null = null;
+let americanLinter: harper.LocalLinter | null = null;
+let britishLinter: harper.LocalLinter | null = null;
+let isInitializing = false;
 
 async function init() {
-  if (!linter) {
-    try {
-      console.log("Initializing Harper LocalLinter with explicit binary...");
-      // Explicitly pass the binary and dialect to the constructor
-      linter = new harper.LocalLinter({
+  if (isInitializing) return;
+  if (americanLinter && britishLinter) return;
+  
+  isInitializing = true;
+  try {
+    if (!americanLinter) {
+      console.log("Initializing Harper American Linter...");
+      americanLinter = new harper.LocalLinter({
         binary: harper.binary,
-        // Using British as a sensible default for English checks, 
-        // as Harper's Norwegian support is currently limited or handled via general rules.
-        dialect: harper.Dialect.British, 
+        dialect: harper.Dialect.American,
       });
-      await linter.setup();
-      console.log("Harper LocalLinter initialized successfully.");
-      self.postMessage({ type: 'ready' });
-    } catch (e) {
-      console.error("Failed to initialize Harper:", e);
-      self.postMessage({ type: 'error', error: String(e) });
+      await americanLinter.setup();
     }
+    if (!britishLinter) {
+      console.log("Initializing Harper British Linter...");
+      britishLinter = new harper.LocalLinter({
+        binary: harper.binary,
+        dialect: harper.Dialect.British,
+      });
+      await britishLinter.setup();
+    }
+    
+    if (americanLinter && britishLinter) {
+      self.postMessage({ type: 'ready' });
+    }
+  } catch (e) {
+    console.error("Failed to initialize Harper:", e);
+    self.postMessage({ type: 'error', error: String(e) });
+  } finally {
+    isInitializing = false;
   }
 }
 
@@ -33,18 +48,18 @@ self.onmessage = async (e: MessageEvent) => {
   const { text, type, version } = e.data;
 
   if (type === 'dispose') {
-    if (linter) {
-      try {
-        // @ts-ignore - Harper's dispose might not be in all versions of the type defs
-        if (typeof linter.dispose === 'function') {
+    [americanLinter, britishLinter].forEach(l => {
+      if (l) {
+        try {
           // @ts-ignore
-          linter.dispose();
+          if (typeof l.dispose === 'function') l.dispose();
+        } catch (e) {
+          console.error("Failed to dispose Harper:", e);
         }
-        linter = null;
-      } catch (e) {
-        console.error("Failed to dispose Harper:", e);
       }
-    }
+    });
+    americanLinter = null;
+    britishLinter = null;
     return;
   }
 
@@ -55,21 +70,26 @@ self.onmessage = async (e: MessageEvent) => {
 
   if (type === 'lint') {
     await init();
-    if (linter) {
+    if (americanLinter && britishLinter) {
       try {
         if (!text || text.trim().length === 0) {
           self.postMessage({ type: 'results', results: [], version });
           return;
         }
         
-        const lints = await linter.lint(text);
-        
-        // Map Harper's internal lint objects to a serializable format
-        const serializableResults = lints.map(lint => {
+        const [americanLints, britishLints] = await Promise.all([
+          americanLinter.lint(text),
+          britishLinter.lint(text)
+        ]);
+
+        // We only want to report a spelling error if BOTH linters agree it's an error.
+        // For other categories (Grammar, etc.), we can probably just take one or merge them.
+        // Since the user specifically mentioned "colour" vs "color", we focus on Spelling.
+
+        const formatLint = (lint: harper.Lint) => {
           const suggestions = lint.suggestions();
           const kind = lint.lint_kind();
           
-          // Extract all suggestions as plain strings
           const allSuggestions = suggestions.map(s => {
             try {
               // @ts-ignore
@@ -93,15 +113,66 @@ self.onmessage = async (e: MessageEvent) => {
             suggestions: allSuggestions,
             category: String(kind)
           };
+        };
+
+        const americanFormatted = americanLints.map(formatLint);
+        const britishFormatted = britishLints.map(formatLint);
+
+        // Merge strategy:
+        // 1. If a lint is in both, keep it (and merge suggestions).
+        // 2. If a lint is only in one, and it's NOT a spelling error, keep it.
+        // 3. If a lint is only in one, and it IS a spelling error, discard it (because the other dialect accepts it).
+
+        const finalResults: any[] = [];
+        
+        // Helper to find a matching lint in another list
+        const findMatch = (lint: any, list: any[]) => 
+          list.find(l => l.span.start === lint.span.start && l.span.end === lint.span.end);
+
+        // Process American lints
+        americanFormatted.forEach(aLint => {
+          const bMatch = findMatch(aLint, britishFormatted);
+          if (bMatch) {
+            // It's in both. Merge suggestions and keep.
+            const mergedSuggestions = Array.from(new Set([...aLint.suggestions, ...bMatch.suggestions]));
+            finalResults.push({
+              ...aLint,
+              suggestions: mergedSuggestions
+            });
+          } else {
+            // Only in American. Keep if not spelling.
+            if (aLint.category !== 'Spelling') {
+              finalResults.push(aLint);
+            }
+          }
         });
 
-        self.postMessage({ type: 'results', results: serializableResults, version });
+        // Process British lints that weren't in American
+        britishFormatted.forEach(bLint => {
+          const aMatch = findMatch(bLint, americanFormatted);
+          if (!aMatch) {
+            // Only in British. Keep if not spelling.
+            if (bLint.category !== 'Spelling') {
+              finalResults.push(bLint);
+            }
+          }
+        });
+
+        self.postMessage({ type: 'results', results: finalResults, version });
       } catch (error) {
         console.error('Harper lint error:', error);
         self.postMessage({ type: 'error', error: String(error), version });
       }
     } else {
-      console.warn("Linter not initialized yet.");
+      console.warn("Linters not initialized yet.");
     }
   }
 };
+
+
+
+
+
+
+
+

@@ -78,6 +78,7 @@ export const HarperExtension = Extension.create<HarperOptions>({
               const { type, results, error, version: resultVersion } = e.data;
               
               if (type === 'ready') {
+                if (isReady) return; // Prevent multiple ready logs/triggers
                 console.log("Harper worker ready.");
                 isReady = true;
                 if (onStatusChange) onStatusChange('ready');
