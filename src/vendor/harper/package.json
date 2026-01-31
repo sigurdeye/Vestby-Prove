@@ -1,0 +1,7 @@
+{
+  "name": "harper.js",
+  "version": "1.5.1-modded",
+  "type": "module",
+  "main": "harper.js",
+  "types": "harper.d.ts"
+}

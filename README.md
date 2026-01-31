@@ -27,15 +27,19 @@ Dette er en **Zero-Knowledge** applikasjon.
 3.  **Eksporten** til Word skjer lokalt på maskinen.
 4.  Ingen databaser, ingen sporing, ingen informasjonskapsler (cookies) fra tredjeparter.
 
-## Lisens
+## Lisens & Tredjepartsprogramvare
 
 Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE).
 
+Vi benytter oss av følgende tredjepartsprogramvare:
+*   [Harper](https://github.com/elijah-potter/harper) (Apache License 2.0) - Brukes til lokal stavekontroll og grammatikk.
+
+Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskomponenter.
+
 ## Veien videre (TODO)
 
-*   **Grammatikk og avansert stavekontroll:** Planlegge integrasjon av [Harper](https://github.com/elijah-potter/harper) (et åpent, lokalt alternativ til Grammarly). Målet er å få dette til å fungere 100% lokalt inne i et SEB-miljø uten behov for internettilgang.
 *   **Plattformtesting:** Verifisere at verktøyet og eksporten fungerer optimalt på macOS (foreløpig kun testet på Windows).
 
 ---
 
-Laget med ❤️ for en enklere skolehverdag.
+❤️
