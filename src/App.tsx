@@ -142,6 +142,8 @@ const App = () => {
     extensions: [
       StarterKit.configure({
         heading: false,
+        // The Underline extension is sometimes included in other kits or 
+        // can cause duplicate warnings if not handled carefully in Tiptap 3.
       }),
       TextStyle,
       FontFamily,
@@ -157,6 +159,7 @@ const App = () => {
         },
       }),
     ],
+    immediatelyRender: false,
     content: (() => {
       try {
         return localStorage.getItem('vestby-prove-content') || '<p></p>';
