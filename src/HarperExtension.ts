@@ -20,6 +20,7 @@ export interface HarperLintResult {
 
 export interface HarperOptions {
   onResults?: (results: HarperLintResult[]) => void;
+  onStatusChange?: (status: 'loading' | 'ready' | 'error') => void;
 }
 
 export const harperKey = new PluginKey('harper');
@@ -30,14 +31,16 @@ export const HarperExtension = Extension.create<HarperOptions>({
   addOptions() {
     return {
       onResults: undefined,
+      onStatusChange: undefined,
     };
   },
 
   addProseMirrorPlugins() {
-    const { onResults } = this.options;
+    const { onResults, onStatusChange } = this.options;
     let worker: Worker | null = null;
     let lastText = '';
     let version = 0;
+    let isReady = false;
 
     return [
       new Plugin({
@@ -60,33 +63,59 @@ export const HarperExtension = Extension.create<HarperOptions>({
           },
         },
         view(editorView) {
-          worker = new Worker(new URL('./harper.worker.ts', import.meta.url), {
-            type: 'module',
-          });
-
           let debounceTimeout: any = null;
+          let initTimeout: any = null;
 
-          worker.onmessage = (e) => {
-            const { type, results, error, version: resultVersion } = e.data;
-            
-            // Only process results if they match the current document version
-            if (resultVersion !== version) {
-              return;
-            }
+          const initWorker = () => {
+            if (worker) return;
+            console.log("Lazy loading Harper worker...");
+            worker = new Worker(new URL('./harper.worker.ts', import.meta.url), {
+              type: 'module',
+            });
+            if (onStatusChange) onStatusChange('loading');
 
-            if (type === 'error') {
-              console.error('Harper Worker Error:', error);
-              return;
-            }
-            if (type === 'results') {
-              if (onResults) {
-                onResults(results);
+            worker.onmessage = (e) => {
+              const { type, results, error, version: resultVersion } = e.data;
+              
+              if (type === 'ready') {
+                console.log("Harper worker ready.");
+                isReady = true;
+                if (onStatusChange) onStatusChange('ready');
+                // Trigger initial lint once ready
+                const text = editorView.state.doc.textContent;
+                worker?.postMessage({ type: 'lint', text, version });
+                return;
               }
-            }
+
+              if (type === 'error') {
+                console.error('Harper Worker Error:', error);
+                if (onStatusChange) onStatusChange('error');
+                return;
+              }
+
+              // Only process results if they match the current document version
+              if (resultVersion !== version) {
+                return;
+              }
+
+              if (type === 'results') {
+                if (onResults) {
+                  onResults(results);
+                }
+              }
+            };
+
+            // Explicitly trigger initialization
+            worker.postMessage({ type: 'init' });
           };
+
+          // Set a 3-second delay before starting the worker
+          initTimeout = setTimeout(initWorker, 3000);
 
           return {
             update(view, prevState) {
+              if (!worker || !isReady) return;
+
               const { state } = view;
               const text = state.doc.textContent;
 
@@ -103,7 +132,10 @@ export const HarperExtension = Extension.create<HarperOptions>({
             },
             destroy() {
               if (debounceTimeout) clearTimeout(debounceTimeout);
-              worker?.terminate();
+              if (initTimeout) clearTimeout(initTimeout);
+              worker?.postMessage({ type: 'dispose' });
+              // Give the worker a moment to dispose before terminating
+              setTimeout(() => worker?.terminate(), 100);
             },
           };
         },

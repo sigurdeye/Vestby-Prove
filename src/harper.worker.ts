@@ -19,14 +19,37 @@ async function init() {
       });
       await linter.setup();
       console.log("Harper LocalLinter initialized successfully.");
+      self.postMessage({ type: 'ready' });
     } catch (e) {
       console.error("Failed to initialize Harper:", e);
+      self.postMessage({ type: 'error', error: String(e) });
     }
   }
 }
 
 self.onmessage = async (e: MessageEvent) => {
   const { text, type, version } = e.data;
+
+  if (type === 'dispose') {
+    if (linter) {
+      try {
+        // @ts-ignore - Harper's dispose might not be in all versions of the type defs
+        if (typeof linter.dispose === 'function') {
+          // @ts-ignore
+          linter.dispose();
+        }
+        linter = null;
+      } catch (e) {
+        console.error("Failed to dispose Harper:", e);
+      }
+    }
+    return;
+  }
+
+  if (type === 'init') {
+    await init();
+    return;
+  }
 
   if (type === 'lint') {
     await init();

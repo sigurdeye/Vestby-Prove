@@ -88,12 +88,19 @@ const App = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState(false);
-  const [countdown, setCountdown] = useState(3);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
   const [ignoredSpans, setIgnoredSpans] = useState<{start: number, end: number, text: string}[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [suggestionIndices, setSuggestionIndices] = useState<Record<string, number>>({});
+  const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+
+  // Handle auto-save status with proper cleanup
+  useEffect(() => {
+    if (!isSaved) {
+      const timeout = setTimeout(() => setIsSaved(true), 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isSaved]);
 
   const simplifyMessage = useCallback((result: HarperLintResult) => {
     const { category, message, suggestions } = result;
@@ -130,11 +137,7 @@ const App = () => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        history: {
-          depth: 500,
-        },
         heading: false,
-        underline: false,
       }),
       TextStyle,
       FontFamily,
@@ -145,26 +148,42 @@ const App = () => {
         onResults: (results) => {
           setLintResults(results);
         },
+        onStatusChange: (status) => {
+          setHarperStatus(status);
+        },
       }),
     ],
-    content: localStorage.getItem('vestby-prove-content') || '<p></p>',
+    content: (() => {
+      try {
+        return localStorage.getItem('vestby-prove-content') || '<p></p>';
+      } catch (e) {
+        console.error('Failed to access localStorage:', e);
+        return '<p></p>';
+      }
+    })(),
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
-      localStorage.setItem('vestby-prove-content', content);
+      try {
+        localStorage.setItem('vestby-prove-content', content);
+      } catch (e) {
+        console.error('Failed to save content to localStorage:', e);
+      }
       
       const text = editor.getText();
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
       setWordCount(words);
       
       setIsSaved(false);
-      const saveTimeout = setTimeout(() => setIsSaved(true), 1000);
-
-      return () => {
-        clearTimeout(saveTimeout);
-      };
     },
     onCreate: ({ editor }) => {
-      if (!localStorage.getItem('vestby-prove-content')) {
+      let savedContent: string | null = null;
+      try {
+        savedContent = localStorage.getItem('vestby-prove-content');
+      } catch (e) {
+        console.error('Failed to read content from localStorage:', e);
+      }
+
+      if (!savedContent) {
         editor.chain().focus().setFontFamily('OpenDyslexic').setMark('textStyle', { fontSize: '14px' }).run();
       }
     },
@@ -172,7 +191,7 @@ const App = () => {
       attributes: {
         spellcheck: 'false',
         class: 'font-opendyslexic outline-none',
-      },
+      } as any,
     },
   });
 
@@ -182,6 +201,9 @@ const App = () => {
     const { doc } = editor.state;
     let currentTextPos = 0;
     let targetPos = -1;
+
+    // Optimization: If charOffset is 0, we know it's the start
+    if (charOffset === 0 && !isEnd) return 1;
 
     doc.descendants((node, pos) => {
       if (targetPos !== -1) return false;
@@ -203,7 +225,11 @@ const App = () => {
       return true;
     });
 
-    return targetPos !== -1 ? targetPos : charOffset + 1;
+    // If we didn't find the position, return a safe fallback within document bounds
+    if (targetPos === -1) {
+      return Math.min(Math.max(1, charOffset + 1), doc.content.size - 1);
+    }
+    return targetPos;
   }, [editor]);
 
   const filteredResults = React.useMemo(() => {
@@ -256,7 +282,8 @@ const App = () => {
         const startPos = getPos(result.span.start);
         const endPos = getPos(result.span.end, true);
 
-        if (startPos !== -1 && endPos !== -1) {
+        // Validate positions before creating decoration
+        if (startPos >= 1 && endPos > startPos && endPos < state.doc.content.size) {
           decorations.push(Decoration.inline(startPos, endPos, {
             class: cn('harper-error', isFocused && 'harper-error-focused'),
             style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '15'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important; transition: background-color 0.2s ease;`,
@@ -395,7 +422,6 @@ const App = () => {
   const handleCloseExportModal = () => {
     setShowExportModal(false);
     setDownloadComplete(false);
-    setCountdown(3);
     if (downloadUrl) {
       URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
@@ -550,7 +576,13 @@ const App = () => {
             )}
             title="Grammatikk"
           >
-            <Search size={18} />
+            {harperStatus === 'loading' ? (
+              <Loader2 size={18} className="animate-spin text-blue-500" />
+            ) : harperStatus === 'error' ? (
+              <AlertCircle size={18} className="text-red-500" />
+            ) : (
+              <Search size={18} />
+            )}
             {filteredResults.length > 0 && (
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                 {filteredResults.length}
@@ -609,7 +641,23 @@ const App = () => {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {filteredResults.length === 0 ? (
+              {harperStatus === 'loading' || harperStatus === 'idle' ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
+                  <Loader2 size={48} className="text-blue-100 animate-spin" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Laster stavekontroll...</p>
+                    <p className="text-xs">Dette tar bare noen sekunder.</p>
+                  </div>
+                </div>
+              ) : harperStatus === 'error' ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
+                  <AlertCircle size={48} className="text-red-100" />
+                  <div className="space-y-1">
+                    <p className="font-medium">Kunne ikke laste stavekontroll</p>
+                    <p className="text-xs text-red-400">Prøv å laste siden på nytt.</p>
+                  </div>
+                </div>
+              ) : filteredResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-2">
                   <CheckCircle2 size={48} className="text-green-100" />
                   <p>No issues found!</p>
