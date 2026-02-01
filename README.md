@@ -52,4 +52,4 @@ Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskompon
 
 ---
 
-❤️
+[![Buy Me A Coffee](https://img.shields.io/badge/Feel%20free%20to%20support%20me-☕%20buymeacoffee.com-FFDD00?style=for-the-badge&logoColor=black)](https://www.buymeacoffee.com/sigurdeye)

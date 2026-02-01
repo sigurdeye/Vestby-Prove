@@ -52,4 +52,4 @@ See [CREDITS.md](CREDITS.md) for full license terms for third-party components.
 
 ---
 
-❤️
+[![Buy Me A Coffee](https://img.shields.io/badge/Feel%20free%20to%20support%20me-☕%20buymeacoffee.com-FFDD00?style=for-the-badge&logoColor=black)](https://www.buymeacoffee.com/sigurdeye)
