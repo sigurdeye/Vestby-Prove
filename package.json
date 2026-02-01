@@ -1,5 +1,6 @@
 {
   "name": "vestbyprove",
+  "description": "Minimalist, secure, and privacy-focused writing tool for school exams. Designed for Safe Exam Browser.",
   "private": true,
   "version": "0.0.0",
   "type": "module",

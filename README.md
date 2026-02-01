@@ -1,3 +1,9 @@
+> [!WARNING]
+> **Dette prosjektet er under utvikling (Work in Progress).**
+> Det er ikke grundig testet ennå og kan inneholde feil som kan føre til tap av data. Bruk på eget ansvar.
+
+[English version (README.en.md)](README.en.md)
+
 # Vestby prøve 📝
 
 Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk i skoleverket under prøver og eksamen. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for uautorisert samarbeid.
@@ -16,7 +22,11 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 *   Fast linjeavstand på 1.5 (standard for skoleoppgaver).
 *   Valg mellom OpenDyslexic, Arial og Verdana.
 *   Ordtelling i sanntid.
-*   Eksport til standard `.docx`-format for innlevering i læringsplattformer (LMS).
+*   Eksport til standard `.docx`-format.
+
+## Brukergrensesnitt og Språk
+
+Verktøyet er utviklet spesifikt for norske elever, og grensesnittet er derfor på norsk. En språkvelger er teknisk enkel å implementere, men er utelatt med vilje for å minimere "støy" og distraksjoner i brukergrensesnittet under en prøvesituasjon. Vi vurderer å legge til støtte for flere språk senere dersom det er et reelt behov.
 
 ## Teknisk info & Personvern (GDPR)
 
