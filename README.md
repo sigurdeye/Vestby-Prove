@@ -48,7 +48,7 @@ Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskompon
 
 ## Veien videre (TODO)
 
-*   **Plattformtesting:** Verifisere at verktøyet og eksporten fungerer optimalt på macOS (foreløpig kun testet på Windows).
+*   **Refaktorering:** Splitte opp `App.tsx` i mindre, mer håndterbare komponenter.
 
 ---
 

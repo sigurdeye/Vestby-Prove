@@ -89,12 +89,25 @@ const App = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
   const [ignoredSpans, setIgnoredSpans] = useState<{ start: number, end: number, text: string }[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [isSpellingEnabled, setIsSpellingEnabled] = useState(true);
+
+  // Ctrl+S keyboard shortcut to open export modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        setShowExportModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Handle auto-save status with proper cleanup
   useEffect(() => {
@@ -405,7 +418,7 @@ const App = () => {
       };
 
       // Recursively process TipTap nodes into docx paragraphs
-      const processNodes = (nodes: any[], listType?: 'bullet' | 'number'): any[] => {
+      const processNodes = (nodes: any[], listType?: 'bullet' | 'number', depth: number = 0): any[] => {
         const paragraphs: any[] = [];
 
         nodes?.forEach((node: any) => {
@@ -414,34 +427,41 @@ const App = () => {
             const paragraph = new DocxParagraph({
               alignment: AlignmentType.LEFT,
               spacing: { line: 360, before: 0, after: 120 },
-              bullet: listType === 'bullet' ? { level: 0 } : undefined,
-              numbering: listType === 'number' ? { reference: 'default-numbering', level: 0 } : undefined,
+              bullet: listType === 'bullet' ? { level: depth } : undefined,
+              numbering: listType === 'number' ? { reference: 'default-numbering', level: depth } : undefined,
               children: getTextRuns(node),
             });
             paragraphs.push(paragraph);
           } else if (node.type === 'bulletList') {
-            // Process bullet list items
+            // Process bullet list items (increase depth for nested lists)
             node.content?.forEach((listItem: any) => {
               if (listItem.type === 'listItem' && listItem.content) {
-                paragraphs.push(...processNodes(listItem.content, 'bullet'));
+                paragraphs.push(...processNodes(listItem.content, 'bullet', depth));
               }
             });
           } else if (node.type === 'orderedList') {
-            // Process ordered list items
+            // Process ordered list items (increase depth for nested lists)
             node.content?.forEach((listItem: any) => {
               if (listItem.type === 'listItem' && listItem.content) {
-                paragraphs.push(...processNodes(listItem.content, 'number'));
+                paragraphs.push(...processNodes(listItem.content, 'number', depth));
               }
             });
           } else if (node.type === 'listItem') {
-            // Direct listItem (shouldn't happen but handle it)
+            // Direct listItem - check for nested lists inside
             if (node.content) {
-              paragraphs.push(...processNodes(node.content, listType));
+              node.content.forEach((childNode: any) => {
+                if (childNode.type === 'bulletList' || childNode.type === 'orderedList') {
+                  // Nested list - increase depth
+                  paragraphs.push(...processNodes([childNode], undefined, depth + 1));
+                } else {
+                  paragraphs.push(...processNodes([childNode], listType, depth));
+                }
+              });
             }
           } else {
             // Fallback: try to extract text from unknown node types
             if (node.content) {
-              paragraphs.push(...processNodes(node.content, listType));
+              paragraphs.push(...processNodes(node.content, listType, depth));
             }
           }
         });
@@ -459,6 +479,18 @@ const App = () => {
                   level: 0,
                   format: LevelFormat.DECIMAL,
                   text: '%1.',
+                  alignment: AlignmentType.LEFT,
+                },
+                {
+                  level: 1,
+                  format: LevelFormat.LOWER_LETTER,
+                  text: '%2.',
+                  alignment: AlignmentType.LEFT,
+                },
+                {
+                  level: 2,
+                  format: LevelFormat.LOWER_ROMAN,
+                  text: '%3.',
                   alignment: AlignmentType.LEFT,
                 },
               ],
@@ -494,6 +526,7 @@ const App = () => {
       reader.readAsDataURL(blob);
     } catch (error) {
       console.error('Export failed:', error);
+      setExportError('Noe gikk galt under eksportering. Prøv igjen.');
     } finally {
       setIsGenerating(false);
     }
@@ -535,6 +568,7 @@ const App = () => {
     setShowExportModal(false);
     setDownloadComplete(false);
     setGeneratedBlob(null);
+    setExportError(null);
     if (downloadUrl) {
       // Note: revokeObjectURL is a no-op for data: URIs but safe to call
       URL.revokeObjectURL(downloadUrl);
@@ -740,7 +774,7 @@ const App = () => {
           <aside className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 animate-in slide-in-from-right duration-300 absolute right-0 top-0 bottom-0 z-10 shadow-xl">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
               <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                Problems
+                Språkfeil
                 {filteredResults.length > 0 && (
                   <span className="text-xs font-normal text-gray-500">
                     ({filteredResults.length})
@@ -774,8 +808,7 @@ const App = () => {
               ) : filteredResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-2">
                   <CheckCircle2 size={48} className="text-green-100" />
-                  <p>No issues found!</p>
-                  <p className="text-xs">Your writing looks great.</p>
+                  <p>Ingen feil funnet</p>
                 </div>
               ) : (
                 filteredResults.map((result, idx) => (
@@ -988,6 +1021,12 @@ const App = () => {
                     )}
                     {downloadUrl && <CheckCircle2 size={18} className="text-green-500 ml-auto" />}
                   </button>
+                  {exportError && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      {exportError}
+                    </div>
+                  )}
                 </div>
 
                 {/* Arrow indicator */}
