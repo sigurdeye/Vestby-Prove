@@ -433,17 +433,17 @@ const App = () => {
             });
             paragraphs.push(paragraph);
           } else if (node.type === 'bulletList') {
-            // Process bullet list items (increase depth for nested lists)
+            // Process bullet list items - route through listItem handler for proper nesting
             node.content?.forEach((listItem: any) => {
-              if (listItem.type === 'listItem' && listItem.content) {
-                paragraphs.push(...processNodes(listItem.content, 'bullet', depth));
+              if (listItem.type === 'listItem') {
+                paragraphs.push(...processNodes([listItem], 'bullet', depth));
               }
             });
           } else if (node.type === 'orderedList') {
-            // Process ordered list items (increase depth for nested lists)
+            // Process ordered list items - route through listItem handler for proper nesting
             node.content?.forEach((listItem: any) => {
-              if (listItem.type === 'listItem' && listItem.content) {
-                paragraphs.push(...processNodes(listItem.content, 'number', depth));
+              if (listItem.type === 'listItem') {
+                paragraphs.push(...processNodes([listItem], 'number', depth));
               }
             });
           } else if (node.type === 'listItem') {
@@ -480,18 +480,63 @@ const App = () => {
                   format: LevelFormat.DECIMAL,
                   text: '%1.',
                   alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 720, hanging: 360 } } },
                 },
                 {
                   level: 1,
                   format: LevelFormat.LOWER_LETTER,
                   text: '%2.',
                   alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 1440, hanging: 360 } } },
                 },
                 {
                   level: 2,
                   format: LevelFormat.LOWER_ROMAN,
                   text: '%3.',
                   alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 2160, hanging: 360 } } },
+                },
+                {
+                  level: 3,
+                  format: LevelFormat.DECIMAL,
+                  text: '%4.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 2880, hanging: 360 } } },
+                },
+                {
+                  level: 4,
+                  format: LevelFormat.LOWER_LETTER,
+                  text: '%5.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 3600, hanging: 360 } } },
+                },
+                {
+                  level: 5,
+                  format: LevelFormat.LOWER_ROMAN,
+                  text: '%6.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 4320, hanging: 360 } } },
+                },
+                {
+                  level: 6,
+                  format: LevelFormat.DECIMAL,
+                  text: '%7.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 5040, hanging: 360 } } },
+                },
+                {
+                  level: 7,
+                  format: LevelFormat.LOWER_LETTER,
+                  text: '%8.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 5760, hanging: 360 } } },
+                },
+                {
+                  level: 8,
+                  format: LevelFormat.LOWER_ROMAN,
+                  text: '%9.',
+                  alignment: AlignmentType.LEFT,
+                  style: { paragraph: { indent: { left: 6480, hanging: 360 } } },
                 },
               ],
             },
