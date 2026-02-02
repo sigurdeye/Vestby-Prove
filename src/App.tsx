@@ -14,14 +14,14 @@ import Typography from '@tiptap/extension-typography';
 // import Paragraph from '@tiptap/extension-paragraph';
 // import Text from '@tiptap/extension-text';
 import BubbleMenuExtension from '@tiptap/extension-bubble-menu';
-import { 
-  Bold, Italic, Underline as UnderlineIcon, 
-  List, ListOrdered, 
+import {
+  Bold, Italic, Underline as UnderlineIcon,
+  List, ListOrdered,
   Undo, Redo, Download, Info, CheckCircle2, AlertCircle,
   ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X,
   Loader2
 } from 'lucide-react';
-import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType, LevelFormat } from 'docx';
 import { saveAs } from 'file-saver';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -91,7 +91,7 @@ const App = () => {
   const [downloadComplete, setDownloadComplete] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
-  const [ignoredSpans, setIgnoredSpans] = useState<{start: number, end: number, text: string}[]>([]);
+  const [ignoredSpans, setIgnoredSpans] = useState<{ start: number, end: number, text: string }[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [isSpellingEnabled, setIsSpellingEnabled] = useState(true);
@@ -106,7 +106,7 @@ const App = () => {
 
   const simplifyMessage = useCallback((result: HarperLintResult) => {
     const { category, message, suggestions } = result;
-    
+
     // Mapping technical terms to friendly Norwegian hints
     const hints: Record<string, string> = {
       "canonical spelling is all-caps": "Sjekk om dette ordet skal ha store bokstaver, eller om det er en skrivefeil.",
@@ -133,7 +133,7 @@ const App = () => {
     if (category === 'Capitalization') return "Husk stor bokstav i starten av setninger og ved navn.";
     if (category === 'Punctuation') return "Sjekk om du mangler et tegn her (punktum, komma osv.).";
     if (category === 'Grammar') return "Sjekk grammatikken i denne setningen.";
-    
+
     return message; // Fallback
   }, []);
 
@@ -181,11 +181,11 @@ const App = () => {
           console.error('Failed to save content to localStorage:', e);
         }
       }
-      
+
       const text = editor.getText();
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
       setWordCount(words);
-      
+
       setIsSaved(false);
     },
     onCreate: ({ editor }) => {
@@ -250,7 +250,7 @@ const App = () => {
       const safePos = Math.min(Math.max(1, charOffset + 1), Math.max(1, doc.content.size - 1));
       return safePos;
     }
-    
+
     // Final safety check for ProseMirror position validity
     return Math.min(Math.max(1, targetPos), Math.max(1, doc.content.size - 1));
   }, [editor]);
@@ -260,15 +260,15 @@ const App = () => {
     return lintResults.filter(result => {
       // Hide style and word choice suggestions to focus on core grammar/spelling
       if (result.category === 'Style' || result.category === 'WordChoice') return false;
-      
+
       if (result.category === 'Capitalization' && result.suggestions.includes('IDE')) return false;
-      
+
       const start = getPos(result.span.start);
       const end = getPos(result.span.end, true);
       const currentText = editor.state.doc.textBetween(start, end);
 
-      return !ignoredSpans.some(ignored => 
-        ignored.start === result.span.start && 
+      return !ignoredSpans.some(ignored =>
+        ignored.start === result.span.start &&
         ignored.end === result.span.end &&
         ignored.text === currentText
       );
@@ -280,7 +280,7 @@ const App = () => {
   useEffect(() => {
     if (editor && editor.view) {
       const { state } = editor;
-      
+
       if (filteredResults.length === 0) {
         const tr = state.tr.setMeta(harperKey, {
           type: 'set-decorations',
@@ -291,7 +291,7 @@ const App = () => {
       }
 
       const decorations: Decoration[] = [];
-      
+
       filteredResults.forEach((result: HarperLintResult) => {
         let color = '#ef4444';
         if (result.category === 'Typo') color = '#f97316';
@@ -327,7 +327,7 @@ const App = () => {
 
     const handleSelectionUpdate = () => {
       const { from } = editor.state.selection;
-      
+
       // Find if the cursor is within any error span
       const result = filteredResults.find(r => {
         const start = getPos(r.span.start);
@@ -369,56 +369,129 @@ const App = () => {
     }
   }, [editor]);
 
+  // Store the generated blob for fallback download
+  const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
+
   const handlePrepareExport = async () => {
     if (!editor) return;
     setIsGenerating(true);
     setDownloadUrl(null);
+    setGeneratedBlob(null);
 
     // Fake non-linear loader for better UX
     await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
 
     try {
+      const baseFontSize = 14;
+
+      // Helper function to extract text runs from a paragraph node
+      const getTextRuns = (paragraphNode: any): any[] => {
+        return paragraphNode.content?.map((child: any) => {
+          let markSize = child.marks?.find((m: any) => m.type === 'fontSize')?.attrs?.fontSize;
+          if (!markSize) {
+            markSize = child.marks?.find((m: any) => m.type === 'textStyle')?.attrs?.fontSize;
+          }
+          const finalSize = markSize ? parseInt(markSize.replace('px', '')) : baseFontSize;
+
+          return new TextRun({
+            text: child.text || '',
+            bold: child.marks?.some((m: any) => m.type === 'bold'),
+            italics: child.marks?.some((m: any) => m.type === 'italic'),
+            underline: child.marks?.some((m: any) => m.type === 'underline') ? {} : undefined,
+            size: finalSize * 2,
+            font: 'Arial',
+          });
+        }) || [new TextRun({ text: "", size: baseFontSize * 2 })];
+      };
+
+      // Recursively process TipTap nodes into docx paragraphs
+      const processNodes = (nodes: any[], listType?: 'bullet' | 'number'): any[] => {
+        const paragraphs: any[] = [];
+
+        nodes?.forEach((node: any) => {
+          if (node.type === 'paragraph') {
+            // Regular paragraph or paragraph inside a list item
+            const paragraph = new DocxParagraph({
+              alignment: AlignmentType.LEFT,
+              spacing: { line: 360, before: 0, after: 120 },
+              bullet: listType === 'bullet' ? { level: 0 } : undefined,
+              numbering: listType === 'number' ? { reference: 'default-numbering', level: 0 } : undefined,
+              children: getTextRuns(node),
+            });
+            paragraphs.push(paragraph);
+          } else if (node.type === 'bulletList') {
+            // Process bullet list items
+            node.content?.forEach((listItem: any) => {
+              if (listItem.type === 'listItem' && listItem.content) {
+                paragraphs.push(...processNodes(listItem.content, 'bullet'));
+              }
+            });
+          } else if (node.type === 'orderedList') {
+            // Process ordered list items
+            node.content?.forEach((listItem: any) => {
+              if (listItem.type === 'listItem' && listItem.content) {
+                paragraphs.push(...processNodes(listItem.content, 'number'));
+              }
+            });
+          } else if (node.type === 'listItem') {
+            // Direct listItem (shouldn't happen but handle it)
+            if (node.content) {
+              paragraphs.push(...processNodes(node.content, listType));
+            }
+          } else {
+            // Fallback: try to extract text from unknown node types
+            if (node.content) {
+              paragraphs.push(...processNodes(node.content, listType));
+            }
+          }
+        });
+
+        return paragraphs;
+      };
+
       const doc = new Document({
+        numbering: {
+          config: [
+            {
+              reference: 'default-numbering',
+              levels: [
+                {
+                  level: 0,
+                  format: LevelFormat.DECIMAL,
+                  text: '%1.',
+                  alignment: AlignmentType.LEFT,
+                },
+              ],
+            },
+          ],
+        },
         sections: [
           {
             properties: {},
-            children: editor.getJSON().content?.map((node: any) => {
-              let alignment = AlignmentType.LEFT;
-              const baseFontSize = 14;
-
-              return new DocxParagraph({
-                alignment,
-                spacing: { 
-                  line: 360,
-                  before: 0,
-                  after: 120 
-                },
-                children: node.content?.map((child: any) => {
-                  let markSize = child.marks?.find((m: any) => m.type === 'fontSize')?.attrs?.fontSize;
-                  if (!markSize) {
-                    markSize = child.marks?.find((m: any) => m.type === 'textStyle')?.attrs?.fontSize;
-                  }
-
-                  const finalSize = markSize ? parseInt(markSize.replace('px', '')) : baseFontSize;
-
-                  return new TextRun({
-                    text: child.text || '',
-                    bold: child.marks?.some((m: any) => m.type === 'bold'),
-                    italics: child.marks?.some((m: any) => m.type === 'italic'),
-                    underline: child.marks?.some((m: any) => m.type === 'underline') ? {} : undefined,
-                    size: finalSize * 2,
-                    font: 'Arial',
-                  });
-                }) || [new TextRun({ text: "", size: baseFontSize * 2 })],
-              });
-            }) || [],
+            children: processNodes(editor.getJSON().content || []),
           },
         ],
       });
 
       const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      setDownloadUrl(url);
+
+      // Store blob for potential fallback download
+      setGeneratedBlob(blob);
+
+      // Convert blob to data URI for better Mac SEB compatibility
+      // Data URIs have explicit support in SEB 3.2.3+ whereas blob: URLs often fail
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUri = reader.result as string;
+        setDownloadUrl(dataUri);
+      };
+      reader.onerror = () => {
+        // Fallback to blob URL if data URI conversion fails
+        console.warn('Data URI conversion failed, falling back to blob URL');
+        const url = URL.createObjectURL(blob);
+        setDownloadUrl(url);
+      };
+      reader.readAsDataURL(blob);
     } catch (error) {
       console.error('Export failed:', error);
     } finally {
@@ -426,26 +499,44 @@ const App = () => {
     }
   };
 
+  // Fallback download using file-saver library (for browsers where data URI fails)
+  const handleFallbackDownload = () => {
+    if (!generatedBlob) return;
+    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase();
+    saveAs(generatedBlob, filename);
+    setDownloadComplete(true);
+  };
+
   const handleExportTxt = () => {
     if (!editor) return;
     const text = editor.getText();
     const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
     const filename = `reservekopi_${exportData.name.replace(/\s+/g, '-') || 'elev'}.txt`.toLowerCase();
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+
+    // Use data URI for Mac SEB compatibility
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUri = reader.result as string;
+      const link = document.createElement('a');
+      link.href = dataUri;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    reader.onerror = () => {
+      // Fallback to saveAs if data URI fails
+      saveAs(blob, filename);
+    };
+    reader.readAsDataURL(blob);
   };
 
   const handleCloseExportModal = () => {
     setShowExportModal(false);
     setDownloadComplete(false);
+    setGeneratedBlob(null);
     if (downloadUrl) {
+      // Note: revokeObjectURL is a no-op for data: URIs but safe to call
       URL.revokeObjectURL(downloadUrl);
       setDownloadUrl(null);
     }
@@ -469,13 +560,13 @@ const App = () => {
             <span className="text-gray-400 font-medium">Sikkerhetskopi</span>
             <div className="flex items-center">
               {isSaved ? (
-                <div 
-                  className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)] transition-all duration-500" 
+                <div
+                  className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)] transition-all duration-500"
                   title="Alt er lagret lokalt"
                 />
               ) : (
-                <div 
-                  className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_5px_rgba(251,191,36,0.4)] transition-all duration-500" 
+                <div
+                  className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_5px_rgba(251,191,36,0.4)] transition-all duration-500"
                   title="Lagrer endringer..."
                 />
               )}
@@ -618,22 +709,22 @@ const App = () => {
       <div className="flex-1 flex overflow-hidden bg-[#f3f3f3] relative">
         {/* Editor Area */}
         <main className="flex-1 overflow-y-auto pt-8 pb-20 transition-all duration-300">
-          <div 
+          <div
             className={cn(
               "transition-all duration-300 relative",
               showSidebar ? "ml-[calc(50%-105mm-160px)]" : "mx-auto"
             )}
-            style={{ 
+            style={{
               width: '210mm',
-              transform: `scale(${zoom / 100})`, 
+              transform: `scale(${zoom / 100})`,
               transformOrigin: 'top center',
             }}
           >
             <div className="hidden md:block">
               {[...Array(10)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="page-label" 
+                <div
+                  key={i}
+                  className="page-label"
                   style={{ top: `${562 + (i * 1124) + 32}px` }}
                 >
                   Side {i + 1}
@@ -656,7 +747,7 @@ const App = () => {
                   </span>
                 )}
               </h2>
-              <button 
+              <button
                 onClick={() => setShowSidebar(false)}
                 className="p-1 hover:bg-gray-200 rounded-md text-gray-400"
               >
@@ -688,43 +779,43 @@ const App = () => {
                 </div>
               ) : (
                 filteredResults.map((result, idx) => (
-                    <div 
-                      key={idx}
-                      data-error-key={`${result.span.start}-${result.span.end}`}
-                      className={cn(
-                        "group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all bg-white cursor-pointer",
-                        focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm bg-blue-50/20"
-                      )}
-                      onClick={() => {
-                        setFocusedErrorKey(`${result.span.start}-${result.span.end}`);
-                        const start = getPos(result.span.start);
-                        const end = getPos(result.span.end, true);
-                        editor.chain().focus().setTextSelection({ from: start, to: end }).run();
-                      }}
-                    >
+                  <div
+                    key={idx}
+                    data-error-key={`${result.span.start}-${result.span.end}`}
+                    className={cn(
+                      "group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all bg-white cursor-pointer",
+                      focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm bg-blue-50/20"
+                    )}
+                    onClick={() => {
+                      setFocusedErrorKey(`${result.span.start}-${result.span.end}`);
+                      const start = getPos(result.span.start);
+                      const end = getPos(result.span.end, true);
+                      editor.chain().focus().setTextSelection({ from: start, to: end }).run();
+                    }}
+                  >
                     <div className="flex justify-between items-center p-3 bg-white group-hover:bg-blue-50/30 transition-colors">
                       <div className="flex items-center gap-2">
                         <div className={cn(
                           "w-1.5 h-6 rounded-full",
-                          result.category === 'Spelling' ? "bg-red-500" : 
-                          result.category === 'Typo' ? "bg-orange-500" :
-                          result.category === 'Grammar' ? "bg-blue-500" :
-                          result.category === 'Style' ? "bg-yellow-500" :
-                          result.category === 'WordChoice' ? "bg-green-500" :
-                          "bg-gray-400",
+                          result.category === 'Spelling' ? "bg-red-500" :
+                            result.category === 'Typo' ? "bg-orange-500" :
+                              result.category === 'Grammar' ? "bg-blue-500" :
+                                result.category === 'Style' ? "bg-yellow-500" :
+                                  result.category === 'WordChoice' ? "bg-green-500" :
+                                    "bg-gray-400",
                           focusedErrorKey === `${result.span.start}-${result.span.end}` && "ring-2 ring-offset-1 ring-blue-400"
                         )} />
                         <span className="text-sm font-bold text-gray-700">
-                          {result.category === 'Spelling' ? 'Stavefeil' : 
-                           result.category === 'Grammar' ? 'Grammatikk' :
-                           result.category === 'Capitalization' ? 'Stor bokstav' :
-                           result.category === 'Punctuation' ? 'Tegnsetting' :
-                           result.category === 'WordChoice' ? 'Ordvalg' : 
-                           result.category}
+                          {result.category === 'Spelling' ? 'Stavefeil' :
+                            result.category === 'Grammar' ? 'Grammatikk' :
+                              result.category === 'Capitalization' ? 'Stor bokstav' :
+                                result.category === 'Punctuation' ? 'Tegnsetting' :
+                                  result.category === 'WordChoice' ? 'Ordvalg' :
+                                    result.category}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             const start = getPos(result.span.start);
@@ -743,32 +834,32 @@ const App = () => {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="px-3 pb-3 pt-1">
                       <p className="text-sm text-gray-600 mb-3 leading-relaxed">
                         {simplifyMessage(result)}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
-                            {result.suggestions.length > 0 && (
-                              <div className="flex flex-wrap gap-2 w-full">
-                                {result.suggestions.slice(0, 3).map((suggestion, sIdx) => (
-                                  <button
-                                    key={sIdx}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const start = getPos(result.span.start);
-                                      const end = getPos(result.span.end, true);
-                                    editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
-                                    // Ensure focus is back in the editor after applying suggestion
-                                    setTimeout(() => editor.chain().focus().run(), 10);
-                                  }}
-                                  className="flex-1 text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-all font-bold shadow-sm text-center"
-                                >
-                                  {suggestion}
-                                </button>
-                                ))}
-                              </div>
-                            )}
+                        {result.suggestions.length > 0 && (
+                          <div className="flex flex-wrap gap-2 w-full">
+                            {result.suggestions.slice(0, 3).map((suggestion, sIdx) => (
+                              <button
+                                key={sIdx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const start = getPos(result.span.start);
+                                  const end = getPos(result.span.end, true);
+                                  editor.chain().focus().insertContentAt({ from: start, to: end }, suggestion).run();
+                                  // Ensure focus is back in the editor after applying suggestion
+                                  setTimeout(() => editor.chain().focus().run(), 10);
+                                }}
+                                className="flex-1 text-sm bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-all font-bold shadow-sm text-center"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -790,8 +881,8 @@ const App = () => {
             onClick={() => setIsSpellingEnabled(!isSpellingEnabled)}
             className={cn(
               "flex items-center gap-2 px-2 py-1 rounded transition-colors",
-              isSpellingEnabled 
-                ? "text-blue-600 hover:bg-blue-50" 
+              isSpellingEnabled
+                ? "text-blue-600 hover:bg-blue-50"
                 : "text-gray-400 hover:bg-gray-100"
             )}
             title={isSpellingEnabled ? "Deaktiver stavekontroll" : "Aktiver stavekontroll"}
@@ -802,7 +893,7 @@ const App = () => {
             </span>
           </button>
         </div>
-        <button 
+        <button
           onClick={() => setShowAboutModal(true)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           title="Om Vestby prøve"
@@ -813,11 +904,11 @@ const App = () => {
 
       {/* Export Modal */}
       {showExportModal && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={handleCloseExportModal}
         >
-          <div 
+          <div
             className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -874,8 +965,8 @@ const App = () => {
                     disabled={!exportData.name || !exportData.class || !exportData.subject || isGenerating || !!downloadUrl}
                     className={cn(
                       "w-full px-4 py-4 rounded-lg transition-all font-medium flex items-center justify-center gap-2 border-2",
-                      !downloadUrl 
-                        ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm" 
+                      !downloadUrl
+                        ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm"
                         : "bg-gray-50 border-gray-200 text-gray-400 cursor-default"
                     )}
                   >
@@ -929,24 +1020,33 @@ const App = () => {
                       </p>
                     </div>
                   ) : (
-                    <a
-                      href={downloadUrl}
-                      download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
-                      onClick={() => {
-                        setDownloadComplete(true);
-                      }}
-                      className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-white text-green-600 flex items-center justify-center text-xs">
-                        2
-                      </div>
-                      KLIKK HER FOR Å LAGRE
-                      <Download size={20} className="ml-auto" />
-                    </a>
+                    <div className="space-y-2">
+                      <a
+                        href={downloadUrl}
+                        download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
+                        onClick={() => {
+                          setDownloadComplete(true);
+                        }}
+                        className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-white text-green-600 flex items-center justify-center text-xs">
+                          2
+                        </div>
+                        KLIKK HER FOR Å LAGRE
+                        <Download size={20} className="ml-auto" />
+                      </a>
+                      {/* Fallback button for Mac SEB or other browsers where data URI fails */}
+                      <button
+                        onClick={handleFallbackDownload}
+                        className="w-full text-center text-xs text-gray-400 hover:text-blue-600 transition-colors py-1"
+                      >
+                        Fungerer ikke? Klikk her for alternativ nedlasting
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
-              
+
               <button
                 onClick={handleCloseExportModal}
                 className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 transition-colors text-sm mt-2"
@@ -974,14 +1074,14 @@ const App = () => {
             <h2 className="text-2xl font-bold mb-4 text-gray-800">Om Vestby prøve</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-                Vestby prøve er et enkelt, sikkert og "dumt" skriveverktøy laget for elever under prøver og eksamen. 
+                Vestby prøve er et enkelt, sikkert og "dumt" skriveverktøy laget for elever under prøver og eksamen.
                 Det er designet for å fungere perfekt i <strong>Safe Exam Browser (SEB)</strong>.
               </p>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <h3 className="font-bold text-blue-800 mb-2">GDPR og personvern</h3>
                 <p className="text-sm text-blue-700">
-                  Ingen tekst eller personopplysninger du skriver her forlater noen gang denne datamaskinen. 
-                  Innholdet lagres kun i nettleserens lokale minne (localStorage) for å sikre mot krasj eller tomt batteri. 
+                  Ingen tekst eller personopplysninger du skriver her forlater noen gang denne datamaskinen.
+                  Innholdet lagres kun i nettleserens lokale minne (localStorage) for å sikre mot krasj eller tomt batteri.
                   Ingenting sendes til en server eller lagres i skyen.
                 </p>
               </div>
@@ -992,9 +1092,9 @@ const App = () => {
                 Laget av en lærer for lærere. Lisensiert under MIT-lisensen.
               </p>
               <div className="pt-4 border-t flex justify-between items-center">
-                <a 
-                  href="https://github.com/sigurdeye/Vestby-Prove" 
-                  target="_blank" 
+                <a
+                  href="https://github.com/sigurdeye/Vestby-Prove"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline font-medium"
                 >
