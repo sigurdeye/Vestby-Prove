@@ -6,7 +6,7 @@
 
 # Vestby prøve 📝
 
-Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk i skoleverket under prøver og eksamen. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for uautorisert samarbeid.
+Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk under prøver i engelskfaget. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for samarbeid.
 
 ![Vestby prøve - Skjermvisning](assets/Showcase1.jpg)
 
@@ -14,8 +14,8 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 
 *   **Ingen innlogging:** Elevene trenger ikke Office 365-konto eller annen pålogging.
 *   **Sikkert mot juks:** Ingen innebygde delingsfunksjoner eller muligheter for sanntidsredigering (co-authoring).
-*   **GDPR-vennlig:** Ingen tekst eller personopplysninger du skriver her sendes til eller lagres på en server. Alt blir værende lokalt i elevens nettleser.
-*   **Krasjsikring:** Teksten lagres automatisk i nettleserens minne (localStorage) hvert sekund. Hvis PC-en går tom for strøm eller SEB krasjer, er teksten der når de åpner siden igjen. (Sikrer mot krasj eller tomt batteri).
+*   **GDPR-vennlig:** Ingen tekst eller personopplysninger du skriver her sendes til eller lagres på en server.
+*   **Krasjsikring:** Teksten lagres automatisk og kontinuerlig i nettleserens minne (localStorage). Hvis PC-en går tom for strøm eller SEB krasjer, er teksten der når de åpner siden igjen. (Sikrer mot krasj eller tomt batteri).
 *   **Universell utforming:** Inkluderer **OpenDyslexic** som standard font for å hjelpe elever med dysleksi.
 
 ## Funksjoner
@@ -28,7 +28,7 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 
 ## Brukergrensesnitt og Språk
 
-Verktøyet er utviklet spesifikt for norske elever, og grensesnittet er derfor på norsk. En språkvelger er teknisk enkel å implementere, men er utelatt med vilje for å minimere "støy" og distraksjoner i brukergrensesnittet under en prøvesituasjon. Vi vurderer å legge til støtte for flere språk senere dersom det er et reelt behov.
+Grensesnittet er på norsk. En språkvelger er teknisk enkel å implementere, men er foreløpig utelatt med vilje for å minimere visuelt støy. Det er mulig å legge til støtte for flere språk senere dersom det er reelt for universell utforming.
 
 ## Teknisk info & Personvern (GDPR)
 
@@ -36,12 +36,12 @@ Dette er en **Zero-Knowledge** applikasjon.
 
 1.  **Serveren (Firebase Hosting)** leverer kun koden (HTML/JS/CSS) til elevens maskin.
 2.  **All tekst** som skrives, behandles og lagres kun i elevens egen nettleser.
-3.  **Eksporten** til Word skjer lokalt på maskinen.
+3.  **Eksporten** til Word/PDF skjer lokalt på maskinen.
 4.  Ingen databaser, ingen sporing, ingen informasjonskapsler (cookies) fra tredjeparter.
 
-## Lisens & Tredjepartsprogramvare
+## Lisens, tredjepartsprogramvare og kostnader
 
-Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE).
+Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE). Du kan derfor fritt klone prosjektet og hoste det selv. Den innebygde stavekontrollen krever at hver bruker laster ned omtrent 10 MB med data fra serveren din. Serveren din må derfor ha en datakvote som støtter dette, noe som kan koste penger.
 
 Vi benytter oss av følgende tredjepartsprogramvare:
 *   [Harper](https://github.com/elijah-potter/harper) (Apache License 2.0) - Brukes til lokal stavekontroll og grammatikk.
