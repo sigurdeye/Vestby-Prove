@@ -387,9 +387,11 @@ const App = () => {
 
   const handlePrepareExport = async () => {
     if (!editor) return;
+    console.log('[Vestby Export] Starting export preparation...');
     setIsGenerating(true);
     setDownloadUrl(null);
     setGeneratedBlob(null);
+    setExportError(null);
 
     // Fake non-linear loader for better UX
     await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
@@ -551,6 +553,7 @@ const App = () => {
       });
 
       const blob = await Packer.toBlob(doc);
+      console.log('[Vestby Export] DOCX blob created, size:', blob.size, 'bytes');
 
       // Store blob for potential fallback download
       setGeneratedBlob(blob);
@@ -560,51 +563,114 @@ const App = () => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUri = reader.result as string;
+        console.log('[Vestby Export] Data URI created, length:', dataUri.length);
         setDownloadUrl(dataUri);
       };
-      reader.onerror = () => {
+      reader.onerror = (e) => {
         // Fallback to blob URL if data URI conversion fails
-        console.warn('Data URI conversion failed, falling back to blob URL');
+        console.warn('[Vestby Export] Data URI conversion failed:', e);
         const url = URL.createObjectURL(blob);
+        console.log('[Vestby Export] Falling back to blob URL:', url);
         setDownloadUrl(url);
       };
       reader.readAsDataURL(blob);
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('[Vestby Export] Export failed:', error);
       setExportError('Noe gikk galt under eksportering. Prøv igjen.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Fallback download using file-saver library (for browsers where data URI fails)
+  // Fallback download using iframe method (for Mac SEB where data URI <a> fails)
   const handleFallbackDownload = () => {
-    if (!generatedBlob) return;
+    if (!generatedBlob) {
+      console.warn('[Vestby Export] Fallback called but no blob available');
+      return;
+    }
     const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase();
-    saveAs(generatedBlob, filename);
+    console.log('[Vestby Export] Attempting iframe fallback download for:', filename);
+
+    // Strategy 1: Try iframe-based download (works in some SEB versions)
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        console.log('[Vestby Export] Iframe method: data URL ready');
+
+        // Create hidden iframe and trigger download
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        document.body.appendChild(iframe);
+
+        try {
+          // Some browsers support direct location assign with data URI
+          if (iframe.contentWindow) {
+            iframe.contentWindow.location.href = dataUrl;
+            console.log('[Vestby Export] Iframe location assigned');
+          }
+        } catch (iframeError) {
+          console.warn('[Vestby Export] Iframe assign failed:', iframeError);
+        }
+
+        // Clean up iframe after delay
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }, 5000);
+      };
+      reader.onerror = (e) => {
+        console.error('[Vestby Export] FileReader error in fallback:', e);
+      };
+      reader.readAsDataURL(generatedBlob);
+    } catch (e) {
+      console.error('[Vestby Export] Iframe method failed:', e);
+    }
+
+    // Strategy 2: Also try saveAs as parallel attempt
+    try {
+      console.log('[Vestby Export] Also trying saveAs as parallel fallback');
+      saveAs(generatedBlob, filename);
+    } catch (saveError) {
+      console.error('[Vestby Export] saveAs also failed:', saveError);
+    }
+
     setDownloadComplete(true);
   };
 
   const handleExportTxt = () => {
     if (!editor) return;
     const text = editor.getText();
-    const blob = new Blob([text], { type: 'text/plain' });
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const filename = `reservekopi_${exportData.name.replace(/\s+/g, '-') || 'elev'}.txt`.toLowerCase();
+    console.log('[Vestby Export] Starting TXT export:', filename, 'size:', blob.size);
 
     // Use data URI for Mac SEB compatibility
     const reader = new FileReader();
     reader.onload = () => {
       const dataUri = reader.result as string;
+      console.log('[Vestby Export] TXT data URI created');
       const link = document.createElement('a');
       link.href = dataUri;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      console.log('[Vestby Export] TXT download link clicked');
     };
-    reader.onerror = () => {
+    reader.onerror = (e) => {
+      console.error('[Vestby Export] TXT data URI failed:', e);
       // Fallback to saveAs if data URI fails
-      saveAs(blob, filename);
+      try {
+        saveAs(blob, filename);
+        console.log('[Vestby Export] TXT saveAs fallback executed');
+      } catch (saveError) {
+        console.error('[Vestby Export] TXT saveAs also failed:', saveError);
+      }
     };
     reader.readAsDataURL(blob);
   };
@@ -1109,6 +1175,7 @@ const App = () => {
                         href={downloadUrl}
                         download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
                         onClick={() => {
+                          console.log('[Vestby Export] Main download button clicked');
                           setDownloadComplete(true);
                         }}
                         className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"

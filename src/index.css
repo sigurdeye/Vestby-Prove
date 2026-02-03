@@ -27,7 +27,9 @@
   --font-verdana: "Verdana", sans-serif;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -35,8 +37,10 @@ html, body, #root {
 
 body {
   background-color: #f3f3f3;
-  color: #111827; /* text-gray-900 */
-  overflow-y: auto; /* Changed from hidden to auto */
+  color: #111827;
+  /* text-gray-900 */
+  overflow-y: auto;
+  /* Changed from hidden to auto */
 }
 
 .ProseMirror {
@@ -50,9 +54,11 @@ body {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
-  width: 100%; /* Changed to 100% because parent now handles the 210mm width */
+  width: 100%;
+  /* Changed to 100% because parent now handles the 210mm width */
   line-height: 1.5;
-  font-size: 14px; /* Base font size for new text */
+  font-size: 14px;
+  /* Base font size for new text */
   margin-top: 2rem;
   margin-bottom: 20rem;
   position: relative;
@@ -122,27 +128,33 @@ body {
 }
 
 .harper-error[data-category="Spelling"] {
-  border-bottom-color: #ef4444 !important; /* Red */
+  border-bottom-color: #ef4444 !important;
+  /* Red */
 }
 
 .harper-error[data-category="Typo"] {
-  border-bottom-color: #f97316 !important; /* Orange */
+  border-bottom-color: #f97316 !important;
+  /* Orange */
 }
 
 .harper-error[data-category="Grammar"] {
-  border-bottom-color: #3b82f6 !important; /* Blue */
+  border-bottom-color: #3b82f6 !important;
+  /* Blue */
 }
 
 .harper-error[data-category="Style"] {
-  border-bottom-color: #eab308 !important; /* Yellow */
+  border-bottom-color: #eab308 !important;
+  /* Yellow */
 }
 
 .harper-error[data-category="WordChoice"] {
-  border-bottom-color: #22c55e !important; /* Green */
+  border-bottom-color: #22c55e !important;
+  /* Green */
 }
 
 .harper-error[data-category="Punctuation"] {
-  border-bottom-color: #a855f7 !important; /* Purple */
+  border-bottom-color: #a855f7 !important;
+  /* Purple */
 }
 
 /* Ensure ProseMirror doesn't hide our decorations */
