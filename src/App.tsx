@@ -124,7 +124,11 @@ const App = () => {
 
     // Mapping technical terms to friendly Norwegian hints
     const hints: Record<string, string> = {
-      "canonical spelling is all-caps": "Sjekk om dette ordet skal ha store bokstaver, eller om det er en skrivefeil.",
+      // Common English phrases to translate
+      "canonical spelling is all-caps": "Sjekk om dette ordet skal ha store bokstaver.",
+      "did you mean the closed compound": "Bør dette skrives som ett ord?",
+      "closed compound": "Disse ordene bør kanskje skrives sammen.",
+      "open compound": "Disse ordene bør kanskje skrives hver for seg.",
       "passive voice": "Prøv å skrive mer direkte (hvem gjør noe?).",
       "determiner": "Sjekk om du mangler et ord som 'en', 'ei' eller 'et'.",
       "split infinitive": "Prøv å ikke sette ord mellom 'å' og verbet.",
@@ -133,6 +137,13 @@ const App = () => {
       "cliché": "Dette er et fast uttrykk. Kan du si det på en annen måte?",
       "repeated word": "Du har skrevet dette ordet to ganger på rad.",
       "multiple spaces": "Du har brukt mer enn ett mellomrom her.",
+      "sentence case": "Sjekk om dette skal ha liten eller stor bokstav.",
+      "an uncategorized rule": "Det kan være en feil her.",
+      "avoid starting a sentence": "Prøv å starte setningen på en annen måte.",
+      "wrong quotes": "Sjekk om du har brukt riktig type anførselstegn.",
+      "sentence appears to be missing": "Denne setningen ser ufullstendig ut.",
+      "spelled correctly": "Sjekk stavemåten.",
+      "misspelling": "Mulig skrivefeil.",
     };
 
     // Check for specific technical phrases in the message
@@ -145,11 +156,16 @@ const App = () => {
       if (suggestions && suggestions.length > 0) return "Mente du en av disse?";
       return "Er det skrevet riktig?";
     }
-    if (category === 'Capitalization') return "Husk stor bokstav i starten av setninger og ved navn.";
-    if (category === 'Punctuation') return "Sjekk om du mangler et tegn her (punktum, komma osv.).";
-    if (category === 'Grammar') return "Sjekk grammatikken i denne setningen.";
+    if (category === 'Capitalization') return "Sjekk stor/liten bokstav.";
+    if (category === 'Punctuation') return "Sjekk tegnsettingen her.";
+    if (category === 'Grammar') return "Sjekk grammatikken her.";
+    if (category === 'WordChoice') return "Vurder et annet ordvalg.";
+    if (category === 'Style') return "Vurder å omformulere.";
+    if (category === 'Typo') return "Mulig skrivefeil.";
+    if (category === 'Miscellaneous') return "Sjekk dette.";
 
-    return message; // Fallback
+    // Final fallback - return a generic message instead of English
+    return "Sjekk denne teksten.";
   }, []);
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 200));
