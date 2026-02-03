@@ -50,7 +50,9 @@ Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskompon
 
 ## Veien videre (TODO)
 
+*   **Testing:** Teste applikasjonen grundig i Safe Exam Browser (SEB).
 *   **Refaktorering:** Splitte opp `App.tsx` i mindre, mer håndterbare komponenter.
+
 
 ---
 
