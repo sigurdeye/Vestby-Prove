@@ -8,6 +8,8 @@
 
 Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk i skoleverket under prøver og eksamen. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for uautorisert samarbeid.
 
+![Vestby prøve - Skjermvisning](assets/Showcase1.jpg)
+
 ## Hvorfor bruke Vestby prøve?
 
 *   **Ingen innlogging:** Elevene trenger ikke Office 365-konto eller annen pålogging.

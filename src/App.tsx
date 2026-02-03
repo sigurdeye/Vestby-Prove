@@ -19,7 +19,7 @@ import {
   List, ListOrdered,
   Undo, Redo, Download, Info, CheckCircle2, AlertCircle,
   ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X,
-  Loader2
+  Loader2, Printer
 } from 'lucide-react';
 import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType, LevelFormat } from 'docx';
 import { saveAs } from 'file-saver';
@@ -96,6 +96,8 @@ const App = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [isSpellingEnabled, setIsSpellingEnabled] = useState(true);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfData, setPdfData] = useState({ name: '', class: '', subject: '' });
 
   // Ctrl+S keyboard shortcut to open export modal
   useEffect(() => {
@@ -687,6 +689,48 @@ const App = () => {
     }
   };
 
+  const handlePrintPdf = () => {
+    if (!editor) return;
+    console.log('[Vestby Export] Starting PDF print...');
+
+    // Get the editor content as HTML
+    const content = editor.getHTML();
+
+    // Create the print content with header info
+    const printContainer = document.getElementById('print-container');
+    if (printContainer) {
+      printContainer.innerHTML = `
+        <div class="print-header">
+          <div><strong>Navn:</strong> ${pdfData.name || 'Ikke oppgitt'}</div>
+          <div><strong>Klasse:</strong> ${pdfData.class || 'Ikke oppgitt'}</div>
+          <div><strong>Fag:</strong> ${pdfData.subject || 'Ikke oppgitt'}</div>
+        </div>
+        <div class="print-content">${content}</div>
+      `;
+    }
+
+    // Close modal and trigger print
+    setShowPdfModal(false);
+
+    // Generate filename from pdfData (same pattern as docx export)
+    const filename = `${pdfData.name.replace(/\s+/g, '-')}_${pdfData.class.replace(/\s+/g, '-')}_${pdfData.subject.replace(/\s+/g, '-')}`.toLowerCase();
+    const originalTitle = document.title;
+
+    // Small delay to ensure modal is closed before print dialog opens
+    setTimeout(() => {
+      // Set document title to desired filename (browsers use this for "Save as PDF" default name)
+      document.title = filename;
+
+      window.print();
+      console.log('[Vestby Export] Print dialog triggered, filename:', filename);
+
+      // Restore original title after a short delay (print dialog is async)
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
+    }, 100);
+  };
+
   if (!editor) return null;
 
   return (
@@ -700,6 +744,13 @@ const App = () => {
           >
             <Download size={18} />
             Lagre til Word (.docx)
+          </button>
+          <button
+            onClick={() => setShowPdfModal(true)}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium shadow-sm whitespace-nowrap"
+          >
+            <Printer size={18} />
+            Lagre som .pdf
           </button>
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
             <span className="text-gray-400 font-medium">Sikkerhetskopi</span>
@@ -1262,6 +1313,80 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* PDF Export Modal */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 print:hidden">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">Lagre som PDF</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Fyll inn informasjonen som skal stå øverst på dokumentet.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Navn</label>
+                <input
+                  type="text"
+                  value={pdfData.name}
+                  onChange={(e) => setPdfData({ ...pdfData, name: e.target.value.toLowerCase() })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                  placeholder="f.eks. ola nordmann"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
+                <input
+                  type="text"
+                  value={pdfData.class}
+                  onChange={(e) => setPdfData({ ...pdfData, class: e.target.value.toLowerCase() })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                  placeholder="f.eks. 10a"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fag</label>
+                <input
+                  type="text"
+                  value={pdfData.subject}
+                  onChange={(e) => setPdfData({ ...pdfData, subject: e.target.value.toLowerCase() })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                  placeholder="f.eks. norsk"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-2">
+              <button
+                onClick={handlePrintPdf}
+                disabled={!pdfData.name || !pdfData.class || !pdfData.subject}
+                className={cn(
+                  "w-full px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all",
+                  pdfData.name && pdfData.class && pdfData.subject
+                    ? "bg-red-600 text-white hover:bg-red-700 shadow-lg"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
+              >
+                <Printer size={18} />
+                Skriv ut som PDF
+              </button>
+              <button
+                onClick={() => setShowPdfModal(false)}
+                className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
+              >
+                Avbryt
+              </button>
+            </div>
+
+            <p className="mt-4 text-xs text-gray-400 text-center">
+              Velg "Lagre som PDF" i utskriftsdialogen som åpnes.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden print container - only visible when printing */}
+      <div id="print-container" className="hidden print:block" />
     </div>
   );
 };

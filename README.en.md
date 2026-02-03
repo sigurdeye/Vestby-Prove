@@ -8,6 +8,8 @@
 
 Vestby prøve is a minimalist, secure, and "dumb" writing tool designed specifically for use in schools during tests and exams. The tool is built to be easily whitelisted in **Safe Exam Browser (SEB)** and eliminates the risk of unauthorized collaboration.
 
+![Vestby prøve - Screenshot](assets/Showcase1.jpg)
+
 ## Why use Vestby prøve?
 
 *   **No login:** Students do not need an Office 365 account or any other login.
@@ -18,11 +20,13 @@ Vestby prøve is a minimalist, secure, and "dumb" writing tool designed specific
 
 ## Features
 
-*   Simple text processing (Bold, Italic, Underline, Headings).
+*   Simple text processing (Bold, Italic, Underline, Lists).
 *   Fixed line spacing of 1.5 (standard for school assignments).
 *   Choice between OpenDyslexic, Arial, and Verdana.
 *   Real-time word count.
 *   Export to standard `.docx` format.
+*   Export to `.pdf` via print dialog (for Mac SEB compatibility).
+*   Built-in grammar and spelling check (via Harper).
 
 ## User Interface and Language
 
@@ -34,7 +38,7 @@ This is a **Zero-Knowledge** application.
 
 1.  **The Server (Firebase Hosting)** only delivers the code (HTML/JS/CSS) to the student's machine.
 2.  **All text** written is processed and stored only in the student's own browser.
-3.  **The export** to Word happens locally on the machine.
+3.  **The export** to Word/PDF happens locally on the machine.
 4.  No databases, no tracking, no third-party cookies.
 
 ## License & Third-Party Software
@@ -48,7 +52,7 @@ See [CREDITS.md](CREDITS.md) for full license terms for third-party components.
 
 ## Future Plans (TODO)
 
-*   **Platform testing:** Verify that the tool and export work optimally on macOS (currently only tested on Windows).
+*   **Refactoring:** Split up `App.tsx` into smaller, more manageable components.
 
 ---
 

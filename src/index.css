@@ -179,3 +179,63 @@ body {
   border-radius: 6px;
   border: 3px solid #f3f3f3;
 }
+
+/* Print styles - hide UI, show only content */
+@media print {
+
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the print container and its contents */
+  #print-container,
+  #print-container * {
+    visibility: visible;
+  }
+
+  #print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 2cm;
+    background: white;
+    font-family: Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: black;
+  }
+
+  .print-header {
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 11pt;
+    color: #333;
+  }
+
+  .print-header div {
+    margin-bottom: 0.25rem;
+  }
+
+  .print-content {
+    font-size: 12pt;
+  }
+
+  .print-content p {
+    margin-bottom: 1rem;
+  }
+
+  .print-content ul,
+  .print-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Page settings */
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+}
