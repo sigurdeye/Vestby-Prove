@@ -1022,7 +1022,10 @@ const App = () => {
                               result.category === 'Capitalization' ? 'Stor bokstav' :
                                 result.category === 'Punctuation' ? 'Tegnsetting' :
                                   result.category === 'WordChoice' ? 'Ordvalg' :
-                                    result.category}
+                                    result.category === 'Style' ? 'Stil' :
+                                      result.category === 'Typo' ? 'Skrivefeil' :
+                                        result.category === 'Miscellaneous' ? 'Annet' :
+                                          result.category}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
