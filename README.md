@@ -24,7 +24,7 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 *   Fast linjeavstand på 1.5 (standard for skoleoppgaver).
 *   Valg mellom OpenDyslexic, Arial og Verdana.
 *   Ordtelling i sanntid.
-*   Eksport til standard `.docx`-format.
+*   Eksport til standard docx- og pdf-format
 
 ## Brukergrensesnitt og Språk
 
