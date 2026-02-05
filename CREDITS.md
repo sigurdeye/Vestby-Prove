@@ -7,7 +7,25 @@ This project includes third-party software components. We are grateful to the au
 - **Repository**: [https://github.com/elijah-potter/harper](https://github.com/elijah-potter/harper)
 - **License**: Apache License 2.0
 
-Harper is used to provide local, privacy-focused grammar and spelling checks.
+Harper is used to provide local, privacy-focused grammar and spelling checks for English.
+
+---
+
+## Typo.js
+
+- **Repository**: [https://github.com/cfinke/Typo.js](https://github.com/cfinke/Typo.js)
+- **License**: Modified BSD License (BSD-3-Clause)
+
+Typo.js is used to integrate Hunspell-style dictionaries for Norwegian spellchecking.
+
+---
+
+## Norwegian Hunspell Dictionaries
+
+- **Origin**: [spell-norwegian](https://github.com/spell-norwegian/spell-norwegian) (via [wooorm/dictionaries](https://github.com/wooorm/dictionaries))
+- **License**: GPL-2.0
+
+The Norwegian (Bokmål) spellcheck dictionaries are licensed under the GPL-2.0 license.
 
 ---
 

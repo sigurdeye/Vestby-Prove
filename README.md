@@ -6,7 +6,7 @@
 
 # Vestby prøve 📝
 
-Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk under prøver i engelskfaget. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for samarbeid.
+Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spesifikt for bruk under prøver. Verktøyet er bygget for å være enkelt å hviteliste i **Safe Exam Browser (SEB)** og eliminerer risikoen for samarbeid.
 
 ![Vestby prøve - Skjermvisning](assets/Showcase1.jpg)
 
@@ -25,10 +25,7 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 *   Valg mellom OpenDyslexic, Arial og Verdana.
 *   Ordtelling i sanntid.
 *   Eksport til standard docx- og pdf-format
-
-## Brukergrensesnitt og Språk
-
-Grensesnittet er på norsk. En språkvelger er teknisk enkel å implementere, men er foreløpig utelatt med vilje for å minimere visuelt støy. Det er mulig å legge til støtte for flere språk senere dersom det er reelt for universell utforming.
+*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk**.
 
 ## Teknisk info & Personvern (GDPR)
 

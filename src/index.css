@@ -159,10 +159,8 @@ body {
 
 /* Ensure ProseMirror doesn't hide our decorations */
 .ProseMirror span.harper-error {
-  border-bottom: 3px solid #ef4444 !important;
-  display: inline-block !important;
-  line-height: 1 !important;
-  padding-bottom: 1px !important;
+  display: inline !important;
+  line-height: inherit !important;
 }
 
 /* Custom scrollbar for the editor area */

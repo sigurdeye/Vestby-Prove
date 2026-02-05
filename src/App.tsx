@@ -19,14 +19,18 @@ import {
   List, ListOrdered,
   Undo, Redo, Download, Info, CheckCircle2, AlertCircle,
   ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X,
-  Loader2, Printer
+  Loader2
 } from 'lucide-react';
 import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType, LevelFormat } from 'docx';
 import { saveAs } from 'file-saver';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { HarperExtension, HarperLintResult, harperKey } from './HarperExtension';
+import { NorwegianExtension, norwegianKey } from './NorwegianExtension';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+
+// Spellcheck language options
+type SpellcheckLanguage = 'en' | 'no' | 'off';
 
 // Custom Font Size Extension
 const FontSize = Extension.create({
@@ -81,6 +85,9 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const App = () => {
+  // Spellcheck language: 'en' (Harper), 'no' (Norwegian), or 'off'
+  const [spellcheckLang, setSpellcheckLang] = useState<SpellcheckLanguage>('en');
+
   const [isSaved, setIsSaved] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -94,10 +101,7 @@ const App = () => {
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
   const [ignoredSpans, setIgnoredSpans] = useState<{ start: number, end: number, text: string }[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [harperStatus, setHarperStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [isSpellingEnabled, setIsSpellingEnabled] = useState(true);
-  const [showPdfModal, setShowPdfModal] = useState(false);
-  const [pdfData, setPdfData] = useState({ name: '', class: '', subject: '' });
+  const [spellcheckStatus, setSpellcheckStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
   // Ctrl+S keyboard shortcut to open export modal
   useEffect(() => {
@@ -180,14 +184,23 @@ const App = () => {
       FontFamily,
       FontSize,
       Typography,
-      HarperExtension.configure({
+      // Conditionally load spellchecker based on language selection
+      ...(spellcheckLang === 'en' ? [HarperExtension.configure({
         onResults: (results) => {
           setLintResults(results);
         },
         onStatusChange: (status) => {
-          setHarperStatus(status);
+          setSpellcheckStatus(status);
         },
-      }),
+      })] : []),
+      ...(spellcheckLang === 'no' ? [NorwegianExtension.configure({
+        onResults: (results) => {
+          setLintResults(results);
+        },
+        onStatusChange: (status) => {
+          setSpellcheckStatus(status);
+        },
+      })] : []),
     ],
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -233,11 +246,18 @@ const App = () => {
     },
     editorProps: {
       attributes: {
+        // Disable browser spellcheck - we use our own spellcheckers
         spellcheck: 'false',
         class: 'font-opendyslexic outline-none',
       } as any,
     },
-  });
+  }, [spellcheckLang]);
+
+  // Clear lint results when switching languages to avoid showing stale errors
+  useEffect(() => {
+    setLintResults([]);
+    setSpellcheckStatus('loading');
+  }, [spellcheckLang]);
 
   // Helper to map Harper character offsets to ProseMirror positions
   const getPos = useCallback((charOffset: number, isEnd = false) => {
@@ -287,7 +307,7 @@ const App = () => {
   }, [editor]);
 
   const filteredResults = React.useMemo(() => {
-    if (!editor || !isSpellingEnabled) return [];
+    if (!editor || spellcheckLang === 'off') return [];
     return lintResults.filter(result => {
       // Hide style and word choice suggestions to focus on core grammar/spelling
       if (result.category === 'Style' || result.category === 'WordChoice') return false;
@@ -304,16 +324,17 @@ const App = () => {
         ignored.text === currentText
       );
     });
-  }, [lintResults, ignoredSpans, editor, getPos, isSpellingEnabled]);
+  }, [lintResults, ignoredSpans, editor, getPos, spellcheckLang]);
 
   const [focusedErrorKey, setFocusedErrorKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (editor && editor.view) {
       const { state } = editor;
+      const currentKey = spellcheckLang === 'no' ? norwegianKey : harperKey;
 
       if (filteredResults.length === 0) {
-        const tr = state.tr.setMeta(harperKey, {
+        const tr = state.tr.setMeta(currentKey, {
           type: 'set-decorations',
           decorations: DecorationSet.empty,
         });
@@ -323,12 +344,12 @@ const App = () => {
 
       const decorations: Decoration[] = [];
 
-      filteredResults.forEach((result: HarperLintResult) => {
-        let color = '#ef4444';
-        if (result.category === 'Typo') color = '#f97316';
-        if (result.category === 'Grammar') color = '#3b82f6';
-        if (result.category === 'Style') color = '#eab308';
-        if (result.category === 'WordChoice') color = '#22c55e';
+      filteredResults.forEach((result: any) => {
+        let color = '#ef4444'; // Red for unknown
+        if (result.category === 'Typo' || result.category === 'Spelling') color = '#f97316'; // Orange
+        if (result.category === 'Grammar') color = '#3b82f6'; // Blue
+        if (result.category === 'Style') color = '#eab308'; // Yellow
+        if (result.category === 'WordChoice') color = '#22c55e'; // Green
 
         const errorKey = `${result.span.start}-${result.span.end}`;
         const isFocused = focusedErrorKey === errorKey;
@@ -340,18 +361,19 @@ const App = () => {
         if (startPos >= 1 && endPos > startPos && endPos < state.doc.content.size) {
           decorations.push(Decoration.inline(startPos, endPos, {
             class: cn('harper-error', isFocused && 'harper-error-focused'),
-            style: `border-bottom: 3px solid ${color} !important; background-color: ${isFocused ? color + '40' : color + '15'} !important; display: inline-block !important; cursor: text !important; line-height: 1 !important; transition: background-color 0.2s ease;`,
+            // Use wavy decoration for "squiggly" effect
+            style: `text-decoration: underline wavy ${color} 2px !important; text-underline-offset: 4px !important; background-color: ${isFocused ? color + '40' : color + '15'} !important; cursor: text !important; transition: background-color 0.2s ease;`,
           }));
         }
       });
 
-      const tr = state.tr.setMeta(harperKey, {
+      const tr = state.tr.setMeta(currentKey, {
         type: 'set-decorations',
         decorations: DecorationSet.create(state.doc, decorations),
       });
       editor.view.dispatch(tr);
     }
-  }, [filteredResults, editor, focusedErrorKey, getPos]);
+  }, [filteredResults, editor, focusedErrorKey, getPos, spellcheckLang]);
 
   useEffect(() => {
     if (!editor) return;
@@ -705,47 +727,7 @@ const App = () => {
     }
   };
 
-  const handlePrintPdf = () => {
-    if (!editor) return;
-    console.log('[Vestby Export] Starting PDF print...');
 
-    // Get the editor content as HTML
-    const content = editor.getHTML();
-
-    // Create the print content with header info
-    const printContainer = document.getElementById('print-container');
-    if (printContainer) {
-      printContainer.innerHTML = `
-        <div class="print-header">
-          <div><strong>Navn:</strong> ${pdfData.name || 'Ikke oppgitt'}</div>
-          <div><strong>Klasse:</strong> ${pdfData.class || 'Ikke oppgitt'}</div>
-          <div><strong>Fag:</strong> ${pdfData.subject || 'Ikke oppgitt'}</div>
-        </div>
-        <div class="print-content">${content}</div>
-      `;
-    }
-
-    // Close modal and trigger print
-    setShowPdfModal(false);
-
-    // Generate filename from pdfData (same pattern as docx export)
-    const filename = `${pdfData.name.replace(/\s+/g, '-')}_${pdfData.class.replace(/\s+/g, '-')}_${pdfData.subject.replace(/\s+/g, '-')}`.toLowerCase();
-    const originalTitle = document.title;
-
-    // Small delay to ensure modal is closed before print dialog opens
-    setTimeout(() => {
-      // Set document title to desired filename (browsers use this for "Save as PDF" default name)
-      document.title = filename;
-
-      window.print();
-      console.log('[Vestby Export] Print dialog triggered, filename:', filename);
-
-      // Restore original title after a short delay (print dialog is async)
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 1000);
-    }, 100);
-  };
 
   if (!editor) return null;
 
@@ -760,13 +742,6 @@ const App = () => {
           >
             <Download size={18} />
             Lagre til Word (.docx)
-          </button>
-          <button
-            onClick={() => setShowPdfModal(true)}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors font-medium shadow-sm whitespace-nowrap"
-          >
-            <Printer size={18} />
-            Lagre som .pdf
           </button>
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
             <span className="text-gray-400 font-medium">Sikkerhetskopi</span>
@@ -902,9 +877,9 @@ const App = () => {
             )}
             title="Grammatikk"
           >
-            {harperStatus === 'loading' ? (
+            {spellcheckStatus === 'loading' ? (
               <Loader2 size={18} className="animate-spin text-blue-500" />
-            ) : harperStatus === 'error' ? (
+            ) : spellcheckStatus === 'error' ? (
               <AlertCircle size={18} className="text-red-500" />
             ) : (
               <Search size={18} />
@@ -967,7 +942,7 @@ const App = () => {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {harperStatus === 'loading' || harperStatus === 'idle' ? (
+              {spellcheckStatus === 'loading' || spellcheckStatus === 'idle' ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
                   <Loader2 size={48} className="text-blue-100 animate-spin" />
                   <div className="space-y-1">
@@ -975,7 +950,7 @@ const App = () => {
                     <p className="text-xs">Dette tar bare noen sekunder.</p>
                   </div>
                 </div>
-              ) : harperStatus === 'error' ? (
+              ) : spellcheckStatus === 'error' ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
                   <AlertCircle size={48} className="text-red-100" />
                   <div className="space-y-1">
@@ -1091,21 +1066,22 @@ const App = () => {
             Antall ord: <span className="font-bold">{wordCount}</span>
           </div>
           <div className="h-4 w-[1px] bg-gray-300" />
-          <button
-            onClick={() => setIsSpellingEnabled(!isSpellingEnabled)}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1 rounded transition-colors",
-              isSpellingEnabled
-                ? "text-blue-600 hover:bg-blue-50"
-                : "text-gray-400 hover:bg-gray-100"
-            )}
-            title={isSpellingEnabled ? "Deaktiver stavekontroll" : "Aktiver stavekontroll"}
-          >
-            <Search size={14} className={cn(!isSpellingEnabled && "opacity-50")} />
-            <span className="font-medium">
-              {isSpellingEnabled ? "Stavekontroll: På" : "Stavekontroll: Av"}
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Search size={14} className={cn(spellcheckLang === 'off' && "opacity-50")} />
+            <span className="font-medium text-gray-500">Stavekontroll:</span>
+            <select
+              value={spellcheckLang}
+              onChange={(e) => setSpellcheckLang(e.target.value as SpellcheckLanguage)}
+              className={cn(
+                "px-2 py-1 rounded border border-gray-200 text-sm font-medium outline-none bg-white cursor-pointer",
+                spellcheckLang !== 'off' ? "text-blue-600" : "text-gray-400"
+              )}
+            >
+              <option value="en">Engelsk (internasjonal)</option>
+              <option value="no">Norsk (Bokmål)</option>
+              <option value="off">Av</option>
+            </select>
+          </div>
         </div>
         <button
           onClick={() => setShowAboutModal(true)}
@@ -1333,79 +1309,6 @@ const App = () => {
         </div>
       )}
 
-      {/* PDF Export Modal */}
-      {showPdfModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">Lagre som PDF</h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Fyll inn informasjonen som skal stå øverst på dokumentet.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Navn</label>
-                <input
-                  type="text"
-                  value={pdfData.name}
-                  onChange={(e) => setPdfData({ ...pdfData, name: e.target.value.toLowerCase() })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                  placeholder="f.eks. ola nordmann"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
-                <input
-                  type="text"
-                  value={pdfData.class}
-                  onChange={(e) => setPdfData({ ...pdfData, class: e.target.value.toLowerCase() })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                  placeholder="f.eks. 10a"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fag</label>
-                <input
-                  type="text"
-                  value={pdfData.subject}
-                  onChange={(e) => setPdfData({ ...pdfData, subject: e.target.value.toLowerCase() })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                  placeholder="f.eks. norsk"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-2">
-              <button
-                onClick={handlePrintPdf}
-                disabled={!pdfData.name || !pdfData.class || !pdfData.subject}
-                className={cn(
-                  "w-full px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all",
-                  pdfData.name && pdfData.class && pdfData.subject
-                    ? "bg-red-600 text-white hover:bg-red-700 shadow-lg"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                )}
-              >
-                <Printer size={18} />
-                Skriv ut som PDF
-              </button>
-              <button
-                onClick={() => setShowPdfModal(false)}
-                className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
-              >
-                Avbryt
-              </button>
-            </div>
-
-            <p className="mt-4 text-xs text-gray-400 text-center">
-              Velg "Lagre som PDF" i utskriftsdialogen som åpnes.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Hidden print container - only visible when printing */}
-      <div id="print-container" className="hidden print:block" />
     </div>
   );
 };
