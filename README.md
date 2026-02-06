@@ -12,33 +12,33 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 
 ## Hvorfor bruke Vestby prøve?
 
-*   **Ingen innlogging:** Elevene trenger ikke Office 365-konto eller annen pålogging.
-*   **Sikkert mot juks:** Ingen innebygde delingsfunksjoner eller muligheter for sanntidsredigering (co-authoring).
-*   **GDPR-vennlig:** Ingen tekst eller personopplysninger du skriver her sendes til eller lagres på en server.
-*   **Krasjsikring:** Teksten lagres automatisk og kontinuerlig i nettleserens minne (localStorage). Hvis PC-en går tom for strøm eller SEB krasjer, er teksten der når de åpner siden igjen. (Sikrer mot krasj eller tomt batteri).
-*   **Universell utforming:** Inkluderer **OpenDyslexic** som standard font for å hjelpe elever med dysleksi.
+*   **Ingen innlogging:**
+*   **Sikkert mot juks:** Ingen innebygde delingsfunksjoner.
+*   **GDPR-vennlig:** Ingen tekst eller personopplysninger du skriver her hverken sendes til eller lagres på en server.
+*   **Krasjsikring:** Teksten lagres automatisk og kontinuerlig i nettleserens minne (localStorage). Hvis PC-en går tom for strøm eller SEB krasjer, er teksten der når de åpner siden igjen. For at dette skal funke i SEB krever det at SEB-konfigurasjonsfilen har begge instansene av "Clear browser session" slått av.
+*   **Universell utforming:** Inkluderer **OpenDyslexic** som standard font for å hjelpe elever med dysleksi. Applikasjonen inneholder også så få distraherende elementer som mulig.
 
 ## Funksjoner
 
-*   Enkel tekstbehandling (Fet, Kursiv, Understrek, Overskrifter).
-*   Fast linjeavstand på 1.5 (standard for skoleoppgaver).
-*   Valg mellom OpenDyslexic, Arial og Verdana.
-*   Ordtelling i sanntid.
+*   Enkel tekstbehandling (Fet, Kursiv, Understrek, Overskrifter)
+*   Fast linjeavstand på 1.5 (standard for skoleoppgaver)
+*   Valg mellom OpenDyslexic, Arial og Verdana
+*   Ordtelling i sanntid
 *   Eksport til standard docx- og pdf-format
-*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk**.
+*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk**
 
 ## Teknisk info & Personvern (GDPR)
 
 Dette er en **Zero-Knowledge** applikasjon. 
 
-1.  **Serveren (Firebase Hosting)** leverer kun koden (HTML/JS/CSS) til elevens maskin.
-2.  **All tekst** som skrives, behandles og lagres kun i elevens egen nettleser.
-3.  **Eksporten** til Word/PDF skjer lokalt på maskinen.
-4.  Ingen databaser, ingen sporing, ingen informasjonskapsler (cookies) fra tredjeparter.
+1.  **Serveren** man benytter seg av for å kjøre applikasjonen trenger kun å leverer koden (HTML/JS/CSS) til elevens maskin
+2.  **All tekst** som skrives, behandles og lagres kun i elevens egen nettleser
+3.  **Eksporten** til Word/PDF skjer lokalt på maskinen
+4.  Ingen databaser, ingen sporing, ingen informasjonskapsler (cookies) fra tredjeparter
 
 ## Lisens, tredjepartsprogramvare og kostnader
 
-Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE). Du kan derfor fritt klone prosjektet og hoste det selv. Den innebygde stavekontrollen krever at hver bruker laster ned omtrent 10 MB med data fra serveren din. Serveren din må derfor ha en datakvote som støtter dette, noe som kan koste penger.
+Dette prosjektet er åpen kildekode og lisensiert under [MIT-lisensen](LICENSE). Du kan derfor fritt klone prosjektet og hoste det selv. Den innebygde stavekontrollen krever at hver bruker laster ned omtrent 10 MB med data fra serveren din. Serveren din må derfor ha en datakvote som støtter dette. Github pages og Cloudflare er gode gratis alternativer. 
 
 Vi benytter oss av følgende tredjepartsprogramvare:
 *   [Harper](https://github.com/elijah-potter/harper) (Apache License 2.0) - Brukes til lokal stavekontroll og grammatikk.
