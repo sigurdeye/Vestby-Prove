@@ -18,11 +18,11 @@ It's mainly for teachers who want to have a writing program that works well insi
 ### I wrote a text through SEB, but my text disappeared when I restarted the test!
 This is because in Safe Exam Browser, you need to uncheck the two options that clear cache when you exit SEB. They're in the "Exam" tab.
 
-### Is it enought to just whitelist the domain for the site?
-There could technically be an issue in SEB if a bot challenge (aka. "Are you human?") appears if you host through e.g. Cloudflare, as it would probably redirect you to a non-whitelisted link for the bot challenge. If you wanna be 100% sure, don't use Cloudflare if you're planning on using this tool with SEB.
+### Is it enough to just whitelist the domain for the site in SEB?
+There could technically be an issue in SEB if a bot challenge (aka. "Are you human?") appears if your writing tool is hosted through e.g. Cloudflare, as it would probably redirect you to a non-whitelisted link for the bot challenge. If you wanna be 100% sure, don't use Cloudflare to host your writing tool.
 
 ### What about shared computers?
-This tool was not intended to be used by shared devices. Student B will see student A's text because it's stored in localStorage.
+This tool was not intended to be used by shared devices. Student B will see student A's text because it's stored in localStorage, and they'll have to clear the text manually to mitigate this.
 
 ### How do I handle updates?
-Fork this repo instead here on GitHub so you'll have a stable version for yourself. Pulling often from this repo is not recommended if you want a stable version.
+Fork this repo instead here on GitHub so you'll have a stable version for yourself. Or just download it and keep a copy of the old version. 
