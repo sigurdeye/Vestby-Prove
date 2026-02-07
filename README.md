@@ -2,7 +2,7 @@
 > **Dette prosjektet er under utvikling (Work in Progress).**
 > Det er ikke grundig testet ennå og kan inneholde feil som kan føre til tap av data. Bruk på eget ansvar.
 
-[English version (README.en.md)](README.en.md)
+[English version (README.en.md)](README.en.md) | [Spørsmål og svar](QA.md)
 
 # Vestby prøve 📝
 
@@ -49,6 +49,7 @@ Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskompon
 
 *   **Testing:** Teste applikasjonen grundig i Safe Exam Browser (SEB).
 *   **Refaktorering:** Splitte opp `App.tsx` i mindre, mer håndterbare komponenter.
+*   **Språklig presisjon:** Når man lagrer en docx-fil bør den si at filen ble lagret i det det faktisk blir lagret. Den bør også si at filen ble lagret på datamaskinen, og ikke "i nedlastingsmappen din"
 
 
 ---

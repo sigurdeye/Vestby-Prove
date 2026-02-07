@@ -2,7 +2,7 @@
 > **This project is a Work in Progress.**
 > It has not been thoroughly tested yet and may contain bugs that could lead to data loss. Use at your own risk.
 
-[Norsk versjon (README.md)](README.md)
+[Norsk versjon (README.md)](README.md) | [Questions & Answers](QA.md)
 
 # Vestby prøve 📝
 
