@@ -33,7 +33,7 @@ Dette er en **Zero-Knowledge** applikasjon.
 
 1.  **Serveren** man benytter seg av for å kjøre applikasjonen trenger kun å leverer koden (HTML/JS/CSS) til elevens maskin
 2.  **All tekst** som skrives, behandles og lagres kun i elevens egen nettleser
-3.  **Eksporten** til Word/PDF skjer lokalt på maskinen
+3.  **Eksporten** til Word (.docx) skjer lokalt på maskinen
 4.  Ingen databaser, ingen sporing, ingen informasjonskapsler (cookies) fra tredjeparter
 
 ## Lisens, tredjepartsprogramvare og kostnader
