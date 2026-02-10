@@ -85,6 +85,41 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const App = () => {
+  // Duplicate tab detection
+  const [isDuplicateTab, setIsDuplicateTab] = useState(false);
+
+  useEffect(() => {
+    // BroadcastChannel is supported in all modern browsers and SEB's Chromium engine
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('vestby-prove-tab');
+    } catch (e) {
+      // BroadcastChannel not supported — skip duplicate detection
+      console.warn('BroadcastChannel not supported, skipping duplicate tab detection');
+      return;
+    }
+
+    let isActive = true;
+
+    channel.onmessage = (event) => {
+      if (event.data === 'ping' && isActive) {
+        // Another tab is asking if anyone is here — reply
+        channel!.postMessage('pong');
+      } else if (event.data === 'pong' && isActive) {
+        // Another tab replied — we are the duplicate
+        setIsDuplicateTab(true);
+      }
+    };
+
+    // Ask if any other tab is already open
+    channel.postMessage('ping');
+
+    return () => {
+      isActive = false;
+      channel?.close();
+    };
+  }, []);
+
   // Spellcheck language: 'en' (Harper), 'no' (Norwegian), or 'off'
   const [spellcheckLang, setSpellcheckLang] = useState<SpellcheckLanguage>('en');
 
@@ -730,6 +765,26 @@ const App = () => {
 
 
   if (!editor) return null;
+
+  // Block duplicate tabs from interacting with the app
+  if (isDuplicateTab) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-lg w-full text-center space-y-6">
+          <div className="text-6xl">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Skriveprogrammet er allerede åpent
+          </h1>
+          <p className="text-gray-600 leading-relaxed">
+            Lukk denne fanen og gå tilbake til det andre vinduet for å fortsette å skrive.
+          </p>
+          <p className="text-xs text-gray-400">
+            Hvorfor? Fordi ellers funker ikke sikkerhetskopieringen.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col font-arial h-screen overflow-hidden">

@@ -24,8 +24,8 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 *   Fast linjeavstand på 1.5 (standard for skoleoppgaver)
 *   Valg mellom OpenDyslexic, Arial og Verdana
 *   Ordtelling i sanntid
-*   Eksport til standard docx- og pdf-format
-*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk**
+*   Eksport til standard docx-format
+*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk** (internasjonal)
 
 ## Teknisk info & Personvern (GDPR)
 
@@ -50,7 +50,6 @@ Se [CREDITS.md](CREDITS.md) for fullstendige lisensvilkår for tredjepartskompon
 *   **Testing:** Teste applikasjonen grundig i Safe Exam Browser (SEB).
 *   **Refaktorering:** Splitte opp `App.tsx` i mindre, mer håndterbare komponenter.
 *   **Språklig presisjon:** Når man lagrer en docx-fil bør den si at filen ble lagret i det det faktisk blir lagret. Den bør også si at filen ble lagret på datamaskinen, og ikke "i nedlastingsmappen din"
-
 
 ---
 
