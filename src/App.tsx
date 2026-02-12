@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import FontFamily from '@tiptap/extension-font-family';
@@ -464,6 +464,7 @@ const App = () => {
 
   // Store the generated blob for fallback download
   const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
+  const exportIdRef = useRef<number>(0);
 
   const handlePrepareExport = async () => {
     if (!editor) return;
@@ -473,8 +474,14 @@ const App = () => {
     setGeneratedBlob(null);
     setExportError(null);
 
+    // Increment ID for this preparation session
+    const currentExportId = ++exportIdRef.current;
+
     // Fake non-linear loader for better UX
     await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 600));
+
+    // Guard: If modal was closed or a new prepare started, don't continue
+    if (currentExportId !== exportIdRef.current) return;
 
     try {
       const baseFontSize = 14;
@@ -642,11 +649,17 @@ const App = () => {
       // Data URIs have explicit support in SEB 3.2.3+ whereas blob: URLs often fail
       const reader = new FileReader();
       reader.onload = () => {
+        // Guard: Only update if we're still on the same session
+        if (currentExportId !== exportIdRef.current) return;
+
         const dataUri = reader.result as string;
         console.log('[Vestby Export] Data URI created, length:', dataUri.length);
         setDownloadUrl(dataUri);
       };
       reader.onerror = (e) => {
+        // Guard: Only update if we're still on the same session
+        if (currentExportId !== exportIdRef.current) return;
+
         // Fallback to blob URL if data URI conversion fails
         console.warn('[Vestby Export] Data URI conversion failed:', e);
         const url = URL.createObjectURL(blob);
@@ -762,6 +775,8 @@ const App = () => {
     setDownloadComplete(false);
     setGeneratedBlob(null);
     setExportError(null);
+    // Invalidate any ongoing preparation
+    exportIdRef.current++;
     if (downloadUrl) {
       // Note: revokeObjectURL is a no-op for data: URIs but safe to call
       URL.revokeObjectURL(downloadUrl);
