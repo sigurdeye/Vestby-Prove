@@ -84,6 +84,11 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const getTimestamp = () => {
+  const now = new Date();
+  return `kl${now.getHours().toString().padStart(2, '0')}.${now.getMinutes().toString().padStart(2, '0')}`;
+};
+
 const App = () => {
   // Duplicate tab detection
   const [isDuplicateTab, setIsDuplicateTab] = useState(false);
@@ -663,7 +668,8 @@ const App = () => {
       console.warn('[Vestby Export] Fallback called but no blob available');
       return;
     }
-    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase();
+    const timestamp = getTimestamp();
+    const filename = `${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}_${timestamp}.docx`.toLowerCase();
     console.log('[Vestby Export] Attempting iframe fallback download for:', filename);
 
     // Strategy 1: Try iframe-based download (works in some SEB versions)
@@ -721,7 +727,8 @@ const App = () => {
     if (!editor) return;
     const text = editor.getText();
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const filename = `reservekopi_${exportData.name.replace(/\s+/g, '-') || 'elev'}.txt`.toLowerCase();
+    const timestamp = getTimestamp();
+    const filename = `reservekopi_${exportData.name.replace(/\s+/g, '-') || 'elev'}_${timestamp}.txt`.toLowerCase();
     console.log('[Vestby Export] Starting TXT export:', filename, 'size:', blob.size);
 
     // Use data URI for Mac SEB compatibility
@@ -1274,7 +1281,7 @@ const App = () => {
                     <div className="space-y-2">
                       <a
                         href={downloadUrl}
-                        download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}.docx`.toLowerCase()}
+                        download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}_${getTimestamp()}.docx`.toLowerCase()}
                         onClick={() => {
                           console.log('[Vestby Export] Main download button clicked');
                           setDownloadComplete(true);
