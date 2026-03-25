@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import FontFamily from '@tiptap/extension-font-family';
 import { TextStyle } from '@tiptap/extension-text-style';
-import { Extension } from '@tiptap/core';
+import { Extension, type Editor } from '@tiptap/core';
 import Underline from '@tiptap/extension-underline';
 import Typography from '@tiptap/extension-typography';
 // Remove these if they are causing duplicates
@@ -89,6 +89,11 @@ const getTimestamp = () => {
   return `kl${now.getHours().toString().padStart(2, '0')}.${now.getMinutes().toString().padStart(2, '0')}`;
 };
 
+const getContentStorageKey = (pathname: string) => {
+  const normalizedPath = pathname === '/' ? 'root' : pathname.replace(/\/+$/, '');
+  return `vestby-prove-content:${normalizedPath || 'root'}`;
+};
+
 const App = () => {
   // Duplicate tab detection
   const [isDuplicateTab, setIsDuplicateTab] = useState(false);
@@ -130,6 +135,7 @@ const App = () => {
 
   const [isSaved, setIsSaved] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [selectedWordCount, setSelectedWordCount] = useState<number | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [exportData, setExportData] = useState({ name: '', class: '', subject: '' });
@@ -215,6 +221,25 @@ const App = () => {
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 200));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 50));
 
+  const countWords = useCallback((text: string) => {
+    const trimmedText = text.trim();
+    return trimmedText ? trimmedText.split(/\s+/).length : 0;
+  }, []);
+
+  const contentStorageKey = getContentStorageKey(window.location.pathname);
+
+  const updateSelectedWordCount = useCallback((editorInstance: Editor) => {
+    const { from, to } = editorInstance.state.selection;
+
+    if (from === to) {
+      setSelectedWordCount(null);
+      return;
+    }
+
+    const selectedText = editorInstance.state.doc.textBetween(from, to, '\n', ' ');
+    setSelectedWordCount(countWords(selectedText));
+  }, [countWords]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -246,7 +271,7 @@ const App = () => {
     shouldRerenderOnTransaction: false,
     content: (() => {
       try {
-        return localStorage.getItem('vestby-prove-content') || '<p></p>';
+        return localStorage.getItem(contentStorageKey) || '<p></p>';
       } catch (e) {
         console.error('Failed to access localStorage:', e);
         return '<p></p>';
@@ -255,7 +280,7 @@ const App = () => {
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
       try {
-        localStorage.setItem('vestby-prove-content', content);
+        localStorage.setItem(contentStorageKey, content);
       } catch (e) {
         if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
           console.error('LocalStorage quota exceeded! Content might not be saved.');
@@ -266,16 +291,15 @@ const App = () => {
         }
       }
 
-      const text = editor.getText();
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      setWordCount(words);
+      setWordCount(countWords(editor.getText()));
+      updateSelectedWordCount(editor);
 
       setIsSaved(false);
     },
     onCreate: ({ editor }) => {
       let savedContent: string | null = null;
       try {
-        savedContent = localStorage.getItem('vestby-prove-content');
+        savedContent = localStorage.getItem(contentStorageKey);
       } catch (e) {
         console.error('Failed to read content from localStorage:', e);
       }
@@ -291,7 +315,7 @@ const App = () => {
         class: 'font-opendyslexic outline-none',
       } as any,
     },
-  }, [spellcheckLang]);
+  }, [contentStorageKey, spellcheckLang]);
 
   // Clear lint results when switching languages to avoid showing stale errors
   useEffect(() => {
@@ -419,6 +443,8 @@ const App = () => {
     if (!editor) return;
 
     const handleSelectionUpdate = () => {
+      updateSelectedWordCount(editor);
+
       const { from } = editor.state.selection;
 
       // Find if the cursor is within any error span
@@ -442,7 +468,7 @@ const App = () => {
     return () => {
       editor.off('selectionUpdate', handleSelectionUpdate);
     };
-  }, [editor, filteredResults, getPos, focusedErrorKey]);
+  }, [editor, filteredResults, getPos, focusedErrorKey, updateSelectedWordCount]);
 
   useEffect(() => {
     if (focusedErrorKey && showSidebar) {
@@ -455,12 +481,11 @@ const App = () => {
 
   useEffect(() => {
     if (editor) {
-      const text = editor.getText();
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      setWordCount(words);
+      setWordCount(countWords(editor.getText()));
+      updateSelectedWordCount(editor);
       setIsSaved(true);
     }
-  }, [editor]);
+  }, [editor, countWords, updateSelectedWordCount]);
 
   // Store the generated blob for fallback download
   const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
@@ -1140,8 +1165,16 @@ const App = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200 px-6 py-2 flex justify-between items-center text-sm text-gray-600 z-20">
         <div className="flex items-center gap-6">
           <div>
-            Antall ord: <span className="font-bold">{wordCount}</span>
+            Antall ord totalt: <span className="font-bold">{wordCount}</span>
           </div>
+          {selectedWordCount !== null && (
+            <>
+              <div className="h-4 w-[1px] bg-gray-300" />
+              <div>
+                Antall ord i markert tekst: <span className="font-bold">{selectedWordCount}</span>
+              </div>
+            </>
+          )}
           <div className="h-4 w-[1px] bg-gray-300" />
           <div className="flex items-center gap-2">
             <Search size={14} className={cn(spellcheckLang === 'off' && "opacity-50")} />
@@ -1283,13 +1316,16 @@ const App = () => {
                       Last ned filen
                     </div>
                   ) : downloadComplete ? (
-                    <div className="w-full px-4 py-6 bg-green-50 border-2 border-green-500 text-green-700 rounded-lg font-bold flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-300">
+                    <div className="w-full px-4 py-6 bg-green-50 border-2 border-green-500 text-green-700 rounded-lg font-bold flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-300 text-center">
                       <div className="flex items-center gap-2 text-xl">
                         <CheckCircle2 size={28} className="text-green-600" />
-                        Filen er lagret!
+                        Flott, fila er lagret!
                       </div>
                       <p className="text-sm font-normal text-green-600">
-                        Filen ligger nå i din nedlastingsmappe.
+                        Nå kan du gå tilbake til oppgaven og trykke på innleveringslenka.
+                      </p>
+                      <p className="text-xs font-normal text-green-600/90">
+                        Filen ligger fortsatt i nedlastingsmappa hvis du trenger den igjen.
                       </p>
                     </div>
                   ) : (
