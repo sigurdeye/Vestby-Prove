@@ -383,7 +383,7 @@ const App = () => {
       const currentText = editor.state.doc.textBetween(start, end);
 
       return !ignoredSpans.some(ignored =>
-        currentText.startsWith(ignored.text) || ignored.text.startsWith(currentText)
+        currentText == ignored.text
       );
     });
   }, [lintResults, ignoredSpans, editor, getPos, spellcheckLang]);
