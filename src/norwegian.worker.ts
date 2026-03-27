@@ -4,6 +4,7 @@
  */
 
 import Typo from 'typo-js';
+import bokmaalToNynorsk from './bokmaalToNynorsk';
 
 let typo: Typo | null = null;
 let isInitializing = false;
@@ -85,7 +86,23 @@ function lintText(text: string): LintResult[] {
         // Check if word is spelled correctly
         if (!typo.check(word)) {
             // Get suggestions
-            const suggestions = typo.suggest(word, 5) || [];
+            let suggestions = typo.suggest(word, 5) || [];
+
+            // Add high-frequency Bokmål to Nynorsk suggestions if applicable
+            const lowerWord = word.toLowerCase();
+            if (bokmaalToNynorsk[lowerWord]) {
+                const preferred = bokmaalToNynorsk[lowerWord];
+                suggestions = [preferred, ...suggestions.filter(s => s !== preferred)];
+            }
+
+            // Ensure suggestions have the same casing as the original world
+            suggestions = suggestions.map(s => {
+                if (word[0] === word[0].toUpperCase()) {
+                    return s.charAt(0).toUpperCase() + s.slice(1);
+                } else {
+                    return s.toLowerCase();
+                }
+            });
 
             results.push({
                 message: `"${word}" kan være feilstavet.`,
