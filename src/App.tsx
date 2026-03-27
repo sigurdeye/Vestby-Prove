@@ -19,7 +19,7 @@ import {
   List, ListOrdered,
   Undo, Redo, Download, Info, CheckCircle2, AlertCircle,
   ZoomIn, ZoomOut, Search, ChevronRight, ChevronDown, X,
-  Loader2
+  Loader2, Moon, Sun
 } from 'lucide-react';
 import { Document, Packer, Paragraph as DocxParagraph, TextRun, AlignmentType, LevelFormat } from 'docx';
 import { saveAs } from 'file-saver';
@@ -129,6 +129,20 @@ const App = () => {
       channel?.close();
     };
   }, []);
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('vestby-dark-mode') === 'true';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('vestby-dark-mode', String(darkMode));
+  }, [darkMode]);
 
   // Spellcheck language: 'en' (Harper), 'no' (Norwegian), or 'off'
   const [spellcheckLang, setSpellcheckLang] = useState<SpellcheckLanguage>('en');
@@ -834,9 +848,9 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col font-arial h-screen overflow-hidden">
+    <div className="min-h-screen flex flex-col font-arial h-screen overflow-hidden dark:text-gray-100">
       {/* Toolbar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-2 flex items-center shadow-sm shrink-0">
+      <div className="sticky top-0 z-10 bg-white dark:bg-[#1e1e1e] border-b border-gray-200 dark:border-[#3a3a3a] px-4 py-2 flex items-center shadow-sm shrink-0">
         <div className="flex-1 flex items-center gap-4">
           <button
             onClick={() => setShowExportModal(true)}
@@ -845,8 +859,8 @@ const App = () => {
             <Download size={18} />
             Lagre til Word (.docx)
           </button>
-          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-            <span className="text-gray-400 font-medium">Sikkerhetskopi</span>
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#2a2a2a] px-3 py-1.5 rounded-full border border-gray-100 dark:border-[#3a3a3a]">
+            <span className="text-gray-400 dark:text-gray-500 font-medium">Sikkerhetskopi</span>
             <div className="flex items-center">
               {isSaved ? (
                 <div
@@ -864,34 +878,34 @@ const App = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-1 justify-center">
-          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200">
+          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200 dark:border-[#3a3a3a]">
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
-              className={cn("p-2 rounded hover:bg-gray-100 transition-colors", editor.isActive('bold') && "bg-blue-100 text-blue-600")}
+              className={cn("p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors", editor.isActive('bold') && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}
               title="Fet"
             >
               <Bold size={18} />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={cn("p-2 rounded hover:bg-gray-100 transition-colors", editor.isActive('italic') && "bg-blue-100 text-blue-600")}
+              className={cn("p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors", editor.isActive('italic') && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}
               title="Kursiv"
             >
               <Italic size={18} />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={cn("p-2 rounded hover:bg-gray-100 transition-colors", editor.isActive('underline') && "bg-blue-100 text-blue-600")}
+              className={cn("p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors", editor.isActive('underline') && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}
               title="Understrek"
             >
               <UnderlineIcon size={18} />
             </button>
           </div>
 
-          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200">
+          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200 dark:border-[#3a3a3a]">
             <select
               onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
-              className="p-1 rounded border border-gray-200 text-sm outline-none bg-white"
+              className="p-1 rounded border border-gray-200 dark:border-gray-600 text-sm outline-none bg-white dark:bg-[#2a2a2a] dark:text-gray-200"
               value={editor.getAttributes('textStyle').fontFamily || 'OpenDyslexic'}
             >
               <option value="OpenDyslexic">OpenDyslexic</option>
@@ -904,7 +918,7 @@ const App = () => {
                 const size = e.target.value;
                 editor.chain().focus().setMark('textStyle', { fontSize: `${size}px` }).run();
               }}
-              className="p-1 rounded border border-gray-200 text-sm outline-none bg-white"
+              className="p-1 rounded border border-gray-200 dark:border-gray-600 text-sm outline-none bg-white dark:bg-[#2a2a2a] dark:text-gray-200"
               value={editor.getAttributes('textStyle').fontSize?.replace('px', '') || '14'}
             >
               {[12, 14, 16, 18, 20, 24, 30, 36].map(size => (
@@ -913,37 +927,37 @@ const App = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200">
+          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200 dark:border-[#3a3a3a]">
             <button
               onClick={handleZoomOut}
-              className="p-2 rounded hover:bg-gray-100 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors"
               title="Zoom ut"
             >
               <ZoomOut size={18} />
             </button>
-            <div className="text-xs text-gray-400 w-10 text-center font-mono">
+            <div className="text-xs text-gray-400 dark:text-gray-500 w-10 text-center font-mono">
               {zoom}%
             </div>
             <button
               onClick={handleZoomIn}
-              className="p-2 rounded hover:bg-gray-100 transition-colors"
+              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors"
               title="Zoom inn"
             >
               <ZoomIn size={18} />
             </button>
           </div>
 
-          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200">
+          <div className="flex items-center gap-1 border-r pr-2 mr-2 border-gray-200 dark:border-[#3a3a3a]">
             <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={cn("p-2 rounded hover:bg-gray-100 transition-colors", editor.isActive('bulletList') && "bg-blue-100 text-blue-600")}
+              className={cn("p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors", editor.isActive('bulletList') && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}
               title="Punktliste"
             >
               <List size={18} />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              className={cn("p-2 rounded hover:bg-gray-100 transition-colors", editor.isActive('orderedList') && "bg-blue-100 text-blue-600")}
+              className={cn("p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors", editor.isActive('orderedList') && "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400")}
               title="Nummerert liste"
             >
               <ListOrdered size={18} />
@@ -954,7 +968,7 @@ const App = () => {
             <button
               onClick={() => editor.chain().focus().undo().run()}
               disabled={!editor.can().undo()}
-              className="p-2 rounded hover:bg-gray-100 transition-colors disabled:opacity-30"
+              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-30"
               title="Angre"
             >
               <Undo size={18} />
@@ -962,7 +976,7 @@ const App = () => {
             <button
               onClick={() => editor.chain().focus().redo().run()}
               disabled={!editor.can().redo()}
-              className="p-2 rounded hover:bg-gray-100 transition-colors disabled:opacity-30"
+              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-30"
               title="Gjør om"
             >
               <Redo size={18} />
@@ -972,10 +986,17 @@ const App = () => {
 
         <div className="flex-1 flex justify-end items-center gap-4">
           <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors text-gray-600 dark:text-gray-400"
+            title={darkMode ? "Lys modus" : "Mørk modus"}
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
             onClick={() => setShowSidebar(!showSidebar)}
             className={cn(
-              "p-2 rounded hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium",
-              showSidebar ? "text-blue-600 bg-blue-50" : "text-gray-600"
+              "p-2 rounded hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors flex items-center gap-2 text-sm font-medium",
+              showSidebar ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
             )}
             title="Grammatikk"
           >
@@ -995,7 +1016,7 @@ const App = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden bg-[#f3f3f3] relative">
+      <div className="flex-1 flex overflow-hidden bg-[#f3f3f3] dark:bg-[#1a1a1a] relative">
         {/* Editor Area */}
         <main className="flex-1 overflow-y-auto pt-8 pb-20 transition-all duration-300">
           <div
@@ -1026,43 +1047,43 @@ const App = () => {
 
         {/* Sidebar */}
         {showSidebar && (
-          <aside className="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 animate-in slide-in-from-right duration-300 absolute right-0 top-0 bottom-0 z-10 shadow-xl">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-              <h2 className="font-bold text-gray-800 flex items-center gap-2">
+          <aside className="w-80 bg-white dark:bg-[#1e1e1e] border-l border-gray-200 dark:border-[#3a3a3a] flex flex-col shrink-0 animate-in slide-in-from-right duration-300 absolute right-0 top-0 bottom-0 z-10 shadow-xl">
+            <div className="p-4 border-b border-gray-200 dark:border-[#3a3a3a] flex justify-between items-center bg-gray-50 dark:bg-[#2a2a2a]">
+              <h2 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 Språkfeil
                 {filteredResults.length > 0 && (
-                  <span className="text-xs font-normal text-gray-500">
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                     ({filteredResults.length})
                   </span>
                 )}
               </h2>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="p-1 hover:bg-gray-200 rounded-md text-gray-400"
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md text-gray-400"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {spellcheckStatus === 'loading' || spellcheckStatus === 'idle' ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
-                  <Loader2 size={48} className="text-blue-100 animate-spin" />
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center space-y-4">
+                  <Loader2 size={48} className="text-blue-100 dark:text-blue-900 animate-spin" />
                   <div className="space-y-1">
                     <p className="font-medium">Laster stavekontroll...</p>
                     <p className="text-xs">Dette tar bare noen sekunder.</p>
                   </div>
                 </div>
               ) : spellcheckStatus === 'error' ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-4">
-                  <AlertCircle size={48} className="text-red-100" />
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center space-y-4">
+                  <AlertCircle size={48} className="text-red-100 dark:text-red-900" />
                   <div className="space-y-1">
                     <p className="font-medium">Kunne ikke laste stavekontroll</p>
                     <p className="text-xs text-red-400">Prøv å laste siden på nytt.</p>
                   </div>
                 </div>
               ) : filteredResults.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center space-y-2">
-                  <CheckCircle2 size={48} className="text-green-100" />
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-center space-y-2">
+                  <CheckCircle2 size={48} className="text-green-100 dark:text-green-900" />
                   <p>Ingen feil funnet</p>
                 </div>
               ) : (
@@ -1071,8 +1092,8 @@ const App = () => {
                     key={idx}
                     data-error-key={`${result.span.start}-${result.span.end}`}
                     className={cn(
-                      "group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all bg-white cursor-pointer",
-                      focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm bg-blue-50/20"
+                      "group border border-gray-200 dark:border-[#3a3a3a] rounded-lg overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all bg-white dark:bg-[#2a2a2a] cursor-pointer",
+                      focusedErrorKey === `${result.span.start}-${result.span.end}` && "border-blue-500 ring-1 ring-blue-500 shadow-sm bg-blue-50/20 dark:bg-blue-900/10"
                     )}
                     onClick={() => {
                       setFocusedErrorKey(`${result.span.start}-${result.span.end}`);
@@ -1081,7 +1102,7 @@ const App = () => {
                       editor.chain().focus().setTextSelection({ from: start, to: end }).run();
                     }}
                   >
-                    <div className="flex justify-between items-center p-3 bg-white group-hover:bg-blue-50/30 transition-colors">
+                    <div className="flex justify-between items-center p-3 bg-white dark:bg-[#2a2a2a] group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/20 transition-colors">
                       <div className="flex items-center gap-2">
                         <div className={cn(
                           "w-1.5 h-6 rounded-full",
@@ -1093,7 +1114,7 @@ const App = () => {
                                     "bg-gray-400",
                           focusedErrorKey === `${result.span.start}-${result.span.end}` && "ring-2 ring-offset-1 ring-blue-400"
                         )} />
-                        <span className="text-sm font-bold text-gray-700">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
                           {result.category === 'Spelling' ? 'Stavefeil' :
                             result.category === 'Grammar' ? 'Grammatikk' :
                               result.category === 'Capitalization' ? 'Stor bokstav' :
@@ -1127,7 +1148,7 @@ const App = () => {
                     </div>
 
                     <div className="px-3 pb-3 pt-1">
-                      <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">
                         {simplifyMessage(result)}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1162,29 +1183,29 @@ const App = () => {
       </div>
 
       {/* Footer Info */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200 px-6 py-2 flex justify-between items-center text-sm text-gray-600 z-20">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-sm border-t border-gray-200 dark:border-[#3a3a3a] px-6 py-2 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 z-20">
         <div className="flex items-center gap-6">
           <div>
             Antall ord totalt: <span className="font-bold">{wordCount}</span>
           </div>
           {selectedWordCount !== null && (
             <>
-              <div className="h-4 w-[1px] bg-gray-300" />
+              <div className="h-4 w-[1px] bg-gray-300 dark:bg-gray-600" />
               <div>
                 Antall ord i markert tekst: <span className="font-bold">{selectedWordCount}</span>
               </div>
             </>
           )}
-          <div className="h-4 w-[1px] bg-gray-300" />
+          <div className="h-4 w-[1px] bg-gray-300 dark:bg-gray-600" />
           <div className="flex items-center gap-2">
             <Search size={14} className={cn(spellcheckLang === 'off' && "opacity-50")} />
-            <span className="font-medium text-gray-500">Stavekontroll:</span>
+            <span className="font-medium text-gray-500 dark:text-gray-400">Stavekontroll:</span>
             <select
               value={spellcheckLang}
               onChange={(e) => setSpellcheckLang(e.target.value as SpellcheckLanguage)}
               className={cn(
-                "px-2 py-1 rounded border border-gray-200 text-sm font-medium outline-none bg-white cursor-pointer",
-                spellcheckLang !== 'off' ? "text-blue-600" : "text-gray-400"
+                "px-2 py-1 rounded border border-gray-200 dark:border-gray-600 text-sm font-medium outline-none bg-white dark:bg-[#2a2a2a] cursor-pointer",
+                spellcheckLang !== 'off' ? "text-blue-600 dark:text-blue-400" : "text-gray-400 dark:text-gray-500"
               )}
             >
               <option value="en">Engelsk (internasjonal)</option>
@@ -1195,7 +1216,7 @@ const App = () => {
         </div>
         <button
           onClick={() => setShowAboutModal(true)}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-1 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full transition-colors"
           title="Om Vestby prøve"
         >
           <Info size={18} />
@@ -1209,16 +1230,16 @@ const App = () => {
           onClick={handleCloseExportModal}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200"
+            className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl p-8 max-w-md w-full animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Lagre besvarelse</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Lagre besvarelse</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Navn</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Navn</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-[#2a2a2a] dark:text-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="Ditt fulle navn"
                   value={exportData.name}
                   onChange={(e) => {
@@ -1229,10 +1250,10 @@ const App = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Klasse</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-[#2a2a2a] dark:text-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. 10A"
                   value={exportData.class}
                   onChange={(e) => {
@@ -1242,10 +1263,10 @@ const App = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fag</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fag</label>
                 <input
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-[#2a2a2a] dark:text-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all lowercase"
                   placeholder="F.eks. Norsk"
                   value={exportData.subject}
                   onChange={(e) => {
@@ -1299,8 +1320,8 @@ const App = () => {
                 {/* Arrow indicator */}
                 <div className="flex justify-center -my-2 relative z-10">
                   <div className={cn(
-                    "bg-white p-1 rounded-full border transition-colors",
-                    downloadUrl ? "text-green-500 border-green-200" : "text-gray-300 border-gray-100"
+                    "bg-white dark:bg-[#1e1e1e] p-1 rounded-full border transition-colors",
+                    downloadUrl ? "text-green-500 border-green-200" : "text-gray-300 dark:text-gray-600 border-gray-100 dark:border-[#3a3a3a]"
                   )}>
                     <ChevronDown size={20} />
                   </div>
@@ -1309,8 +1330,8 @@ const App = () => {
                 {/* Step 2: Download */}
                 <div className="relative">
                   {!downloadUrl ? (
-                    <div className="w-full px-4 py-4 bg-gray-50 border-2 border-dashed border-gray-200 text-gray-400 rounded-lg font-medium flex items-center justify-center gap-2 opacity-60">
-                      <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-400 border border-gray-300 flex items-center justify-center text-xs">
+                    <div className="w-full px-4 py-4 bg-gray-50 dark:bg-[#2a2a2a] border-2 border-dashed border-gray-200 dark:border-[#3a3a3a] text-gray-400 dark:text-gray-500 rounded-lg font-medium flex items-center justify-center gap-2 opacity-60">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-300 dark:border-gray-600 flex items-center justify-center text-xs">
                         2
                       </div>
                       Last ned filen
@@ -1359,16 +1380,16 @@ const App = () => {
 
               <button
                 onClick={handleCloseExportModal}
-                className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 transition-colors text-sm mt-2"
+                className="w-full px-4 py-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors text-sm mt-2"
               >
                 Avbryt
               </button>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-[#3a3a3a]">
               <button
                 onClick={handleExportTxt}
-                className="text-gray-300 hover:text-gray-500 transition-colors text-[10px] uppercase tracking-widest block mx-auto"
+                className="text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors text-[10px] uppercase tracking-widest block mx-auto"
               >
                 Last ned som enkel tekstfil (reservekopi)
               </button>
@@ -1380,16 +1401,16 @@ const App = () => {
       {/* About Modal */}
       {showAboutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Om Vestby prøve</h2>
-            <div className="space-y-4 text-gray-600 leading-relaxed">
+          <div className="bg-white dark:bg-[#1e1e1e] rounded-xl shadow-2xl p-8 max-w-lg w-full animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Om Vestby prøve</h2>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400 leading-relaxed">
               <p>
                 Vestby prøve er et enkelt, sikkert og "dumt" skriveverktøy laget for elever under prøver og eksamen.
                 Det er designet for å fungere perfekt i <strong>Safe Exam Browser (SEB)</strong>.
               </p>
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h3 className="font-bold text-blue-800 mb-2">GDPR og personvern</h3>
-                <p className="text-sm text-blue-700">
+              <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-100 dark:border-blue-900">
+                <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-2">GDPR og personvern</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-400">
                   Ingen tekst eller personopplysninger du skriver her forlater noen gang denne datamaskinen.
                   Innholdet lagres kun i nettleserens lokale minne (localStorage) for å sikre mot krasj eller tomt batteri.
                   Ingenting sendes til en server eller lagres i skyen.
@@ -1401,7 +1422,7 @@ const App = () => {
               <p className="text-sm">
                 Laget av en lærer for lærere. Lisensiert under MIT-lisensen.
               </p>
-              <div className="pt-4 border-t flex justify-between items-center">
+              <div className="pt-4 border-t dark:border-[#3a3a3a] flex justify-between items-center">
                 <a
                   href="https://github.com/sigurdeye/Vestby-Prove"
                   target="_blank"
@@ -1412,7 +1433,7 @@ const App = () => {
                 </a>
                 <button
                   onClick={() => setShowAboutModal(false)}
-                  className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium"
+                  className="px-6 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors font-medium"
                 >
                   Lukk
                 </button>

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
   font-family: 'OpenDyslexic';
   src: url('/fonts/OpenDyslexic-Regular.otf') format('opentype');
@@ -41,6 +43,31 @@ body {
   /* text-gray-900 */
   overflow-y: auto;
   /* Changed from hidden to auto */
+}
+
+.dark body {
+  background-color: #1a1a1a;
+  color: #f3f4f6;
+}
+
+.dark .ProseMirror {
+  background-color: #2d2d2d;
+  color: #f3f4f6;
+  background-image: linear-gradient(to bottom, transparent 1122px, #3a3a3a 1122px, #3a3a3a 1124px, transparent 1124px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
+.dark .page-label {
+  color: #666;
+}
+
+.dark .editor-container::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.dark .editor-container::-webkit-scrollbar-thumb {
+  background-color: #444;
+  border-color: #1a1a1a;
 }
 
 .ProseMirror {
