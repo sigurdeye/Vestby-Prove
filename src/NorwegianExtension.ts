@@ -20,6 +20,7 @@ export interface NorwegianLintResult {
 export interface NorwegianOptions {
     onResults?: (results: NorwegianLintResult[]) => void;
     onStatusChange?: (status: 'loading' | 'ready' | 'error') => void;
+    dialect?: 'nb_NO' | 'nn_NO';
 }
 
 export const norwegianKey = new PluginKey('norwegian');
@@ -31,11 +32,12 @@ export const NorwegianExtension = Extension.create<NorwegianOptions>({
         return {
             onResults: undefined,
             onStatusChange: undefined,
+            dialect: 'nb_NO' as 'nb_NO' | 'nn_NO',
         };
     },
 
     addProseMirrorPlugins() {
-        const { onResults, onStatusChange } = this.options;
+        const { onResults, onStatusChange, dialect } = this.options;
         let worker: Worker | null = null;
         let lastText = '';
         let version = 0;
@@ -106,7 +108,7 @@ export const NorwegianExtension = Extension.create<NorwegianOptions>({
                         };
 
                         // Explicitly trigger initialization
-                        worker.postMessage({ type: 'init' });
+                        worker.postMessage({ type: 'init', dialect: dialect ?? 'nb_NO' });
                     };
 
                     // Start worker immediately (dictionary is lazy-loaded inside worker)

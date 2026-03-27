@@ -8,6 +8,7 @@ import Typo from 'typo-js';
 let typo: Typo | null = null;
 let isInitializing = false;
 let dictionaryLoaded = false;
+let dialect: 'nb_NO' | 'nn_NO' = 'nb_NO';
 
 async function init() {
     if (isInitializing) return;
@@ -15,12 +16,14 @@ async function init() {
 
     isInitializing = true;
     try {
-        console.log("Loading Norwegian (Bokmål) dictionary...");
+        const langCode = dialect === 'nn_NO' ? 'nn' : 'nb';
+        const langLabel = dialect === 'nn_NO' ? 'Nynorsk' : 'Bokmål';
+        console.log(`Loading Norwegian (${langLabel}) dictionary...`);
 
         // Fetch dictionary files from public directory
         const [affResponse, dicResponse] = await Promise.all([
-            fetch('/dictionaries/nb.aff'),
-            fetch('/dictionaries/nb.dic')
+            fetch(`/dictionaries/${langCode}.aff`),
+            fetch(`/dictionaries/${langCode}.dic`)
         ]);
 
         if (!affResponse.ok || !dicResponse.ok) {
@@ -34,7 +37,7 @@ async function init() {
         console.log("DIC start:", dicData.substring(0, 100));
 
         // Create Typo instance
-        typo = new Typo('nb_NO', affData, dicData);
+        typo = new Typo(dialect, affData, dicData);
 
         // Test a known Norwegian word
         const testWord = "dette";
@@ -106,6 +109,7 @@ self.onmessage = async (e: MessageEvent) => {
     }
 
     if (type === 'init') {
+        if (e.data.dialect) dialect = e.data.dialect;
         await init();
         return;
     }
