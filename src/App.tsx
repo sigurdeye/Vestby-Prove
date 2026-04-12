@@ -86,7 +86,12 @@ function cn(...inputs: ClassValue[]) {
 
 const getTimestamp = () => {
   const now = new Date();
-  return `kl${now.getHours().toString().padStart(2, '0')}.${now.getMinutes().toString().padStart(2, '0')}`;
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}_kl${hours}.${minutes}`;
 };
 
 const getContentStorageKey = (pathname: string) => {
@@ -142,6 +147,7 @@ const App = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadComplete, setDownloadComplete] = useState(false);
+  const [savedFilename, setSavedFilename] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
@@ -496,6 +502,7 @@ const App = () => {
     console.log('[Vestby Export] Starting export preparation...');
     setIsGenerating(true);
     setDownloadUrl(null);
+    setSavedFilename(null);
     setGeneratedBlob(null);
     setExportError(null);
 
@@ -758,6 +765,7 @@ const App = () => {
       console.error('[Vestby Export] saveAs also failed:', saveError);
     }
 
+    setSavedFilename(filename);
     setDownloadComplete(true);
   };
 
@@ -798,6 +806,7 @@ const App = () => {
   const handleCloseExportModal = () => {
     setShowExportModal(false);
     setDownloadComplete(false);
+    setSavedFilename(null);
     setGeneratedBlob(null);
     setExportError(null);
     // Invalidate any ongoing preparation
@@ -1316,25 +1325,24 @@ const App = () => {
                       Last ned filen
                     </div>
                   ) : downloadComplete ? (
-                    <div className="w-full px-4 py-6 bg-green-50 border-2 border-green-500 text-green-700 rounded-lg font-bold flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-300 text-center">
-                      <div className="flex items-center gap-2 text-xl">
-                        <CheckCircle2 size={28} className="text-green-600" />
-                        Flott, fila er lagret!
+                    <div className="w-full px-4 py-6 bg-green-50 border-2 border-green-500 text-green-700 rounded-lg font-bold flex flex-col items-center justify-center animate-in zoom-in duration-300 text-center">
+                      <div className="flex items-start justify-center gap-2">
+                        <CheckCircle2 size={28} className="text-green-600 shrink-0 mt-0.5" />
+                        <p className="text-sm font-normal text-green-600">
+                          Flott, filen din ble lagret som{' '}
+                          <span className="font-mono break-all">{savedFilename}</span>{' '}
+                          i nedlastingsmappa di.
+                        </p>
                       </div>
-                      <p className="text-sm font-normal text-green-600">
-                        Nå kan du gå tilbake til oppgaven og trykke på innleveringslenka.
-                      </p>
-                      <p className="text-xs font-normal text-green-600/90">
-                        Filen ligger fortsatt i nedlastingsmappa hvis du trenger den igjen.
-                      </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <a
                         href={downloadUrl}
                         download={`${exportData.name.replace(/\s+/g, '-')}_${exportData.class.replace(/\s+/g, '-')}_${exportData.subject.replace(/\s+/g, '-')}_${getTimestamp()}.docx`.toLowerCase()}
-                        onClick={() => {
+                        onClick={(e) => {
                           console.log('[Vestby Export] Main download button clicked');
+                          setSavedFilename(e.currentTarget.download);
                           setDownloadComplete(true);
                         }}
                         className="w-full px-4 py-4 bg-green-600 border-2 border-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
