@@ -94,9 +94,15 @@ self.onmessage = async (e: MessageEvent) => {
           return;
         }
         
+        // Force plaintext mode. Harper defaults to `markdown`, and because the
+        // TipTap editor hands us `doc.textContent` (paragraphs concatenated
+        // with no separator), leading whitespace at the start of the document
+        // was causing Harper to treat the whole string as an indented code
+        // block and skip linting entirely.
+        const lintOptions = { language: 'plaintext' as const };
         const [americanLints, britishLints] = await Promise.all([
-          americanLinter.lint(text),
-          britishLinter.lint(text)
+          americanLinter.lint(text, lintOptions),
+          britishLinter.lint(text, lintOptions)
         ]);
 
         // We only want to report a spelling error if BOTH linters agree it's an error.
