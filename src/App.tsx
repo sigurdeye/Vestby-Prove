@@ -30,7 +30,7 @@ import { NorwegianExtension, norwegianKey } from './NorwegianExtension';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 // Spellcheck language options
-type SpellcheckLanguage = 'en' | 'no' | 'off';
+type SpellcheckLanguage = 'en' | 'no' | 'nn' | 'off';
 
 // An ignored lint range, tracked by ProseMirror positions so it follows
 // the text as the document is edited (via tr.mapping remapping).
@@ -306,6 +306,16 @@ const App = () => {
         },
       })] : []),
       ...(spellcheckLang === 'no' ? [NorwegianExtension.configure({
+        dialect: 'nb_NO',
+        onResults: (results) => {
+          setLintResults(results);
+        },
+        onStatusChange: (status) => {
+          setSpellcheckStatus(status);
+        },
+      })] : []),
+      ...(spellcheckLang === 'nn' ? [NorwegianExtension.configure({
+        dialect: 'nn_NO',
         onResults: (results) => {
           setLintResults(results);
         },
@@ -448,7 +458,7 @@ const App = () => {
   useEffect(() => {
     if (editor && editor.view) {
       const { state } = editor;
-      const currentKey = spellcheckLang === 'no' ? norwegianKey : harperKey;
+      const currentKey = (spellcheckLang === 'no' || spellcheckLang === 'nn') ? norwegianKey : harperKey;
 
       if (filteredResults.length === 0) {
         const tr = state.tr.setMeta(currentKey, {
@@ -1314,6 +1324,7 @@ const App = () => {
             >
               <option value="en">Engelsk (internasjonal)</option>
               <option value="no">Norsk (Bokmål)</option>
+              <option value="nn">Norsk (Nynorsk)</option>
               <option value="off">Av</option>
             </select>
           </div>

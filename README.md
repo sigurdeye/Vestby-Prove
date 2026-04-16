@@ -25,7 +25,7 @@ Vestby prøve er et minimalistisk, sikkert og "dumt" skriveverktøy designet spe
 *   Valg mellom OpenDyslexic, Arial og Verdana
 *   Ordtelling i sanntid
 *   Eksport til standard docx-format
-*   Innebygd stavekontroll for både **norsk (bokmål)** og **engelsk** (internasjonal)
+*   Innebygd stavekontroll for **norsk (bokmål)**, **norsk (nynorsk)** og **engelsk** (internasjonal)
 
 ## Teknisk info & Personvern (GDPR)
 

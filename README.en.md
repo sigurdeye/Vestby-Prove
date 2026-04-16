@@ -25,6 +25,7 @@ Vestby prøve is a minimalist, secure, and "dumb" writing tool designed specific
 *   Choice between OpenDyslexic, Arial, and Verdana.
 *   Real-time word count.
 *   Export to standard `.docx` format.
+*   Built-in spellcheck for **Norwegian (Bokmål)**, **Norwegian (Nynorsk)**, and **English** (international).
 
 ## User Interface and Language
 
