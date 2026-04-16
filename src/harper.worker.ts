@@ -10,6 +10,21 @@ let americanLinter: harper.LocalLinter | null = null;
 let britishLinter: harper.LocalLinter | null = null;
 let isInitializing = false;
 
+// Harper's `LongSentences` rule emits a paragraph-spanning `Readability` lint
+// when a "sentence" exceeds 40 words. In unpunctuated run-on writing (our
+// dyslexic / non-native target audience) this single high-priority lint
+// swallows the paragraph and suppresses visible per-word feedback from other
+// rules. Disabling it at the linter level lets spelling and other per-token
+// rules surface their own lints normally.
+async function disableReadabilityRules(linter: harper.LocalLinter) {
+  try {
+    const current = await linter.getLintConfig();
+    await linter.setLintConfig({ ...current, LongSentences: false });
+  } catch (e) {
+    console.warn("Failed to disable Harper LongSentences rule:", e);
+  }
+}
+
 async function init() {
   if (isInitializing) return;
   if (americanLinter && britishLinter) return;
@@ -23,6 +38,7 @@ async function init() {
         dialect: harper.Dialect.American,
       });
       await americanLinter.setup();
+      await disableReadabilityRules(americanLinter);
     }
     if (!britishLinter) {
       console.log("Initializing Harper British Linter...");
@@ -31,6 +47,7 @@ async function init() {
         dialect: harper.Dialect.British,
       });
       await britishLinter.setup();
+      await disableReadabilityRules(britishLinter);
     }
     
     if (americanLinter && britishLinter) {
@@ -77,9 +94,15 @@ self.onmessage = async (e: MessageEvent) => {
           return;
         }
         
+        // Force plaintext mode. Harper defaults to `markdown`, and because the
+        // TipTap editor hands us `doc.textContent` (paragraphs concatenated
+        // with no separator), leading whitespace at the start of the document
+        // was causing Harper to treat the whole string as an indented code
+        // block and skip linting entirely.
+        const lintOptions = { language: 'plaintext' as const };
         const [americanLints, britishLints] = await Promise.all([
-          americanLinter.lint(text),
-          britishLinter.lint(text)
+          americanLinter.lint(text, lintOptions),
+          britishLinter.lint(text, lintOptions)
         ]);
 
         // We only want to report a spelling error if BOTH linters agree it's an error.
