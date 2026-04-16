@@ -18,7 +18,12 @@ export interface NorwegianLintResult {
 }
 
 export interface NorwegianOptions {
-    onResults?: (results: NorwegianLintResult[]) => void;
+    // `lintedText` is the exact plain-text snapshot the worker processed to
+    // produce these results. Callers use it to detect staleness: if the
+    // editor's current text doesn't match, lint-result-derived decorations
+    // would be mispositioned and should be suppressed until the next lint
+    // run catches up.
+    onResults?: (results: NorwegianLintResult[], lintedText: string) => void;
     onStatusChange?: (status: 'loading' | 'ready' | 'error') => void;
 }
 
@@ -100,7 +105,11 @@ export const NorwegianExtension = Extension.create<NorwegianOptions>({
 
                             if (type === 'results') {
                                 if (onResults) {
-                                    onResults(results);
+                                    // `lastText` is the snapshot posted to the
+                                    // worker for this version; the version
+                                    // check above guarantees it still matches
+                                    // the text these results describe.
+                                    onResults(results, lastText);
                                 }
                             }
                         };

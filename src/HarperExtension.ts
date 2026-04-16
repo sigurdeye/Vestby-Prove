@@ -19,7 +19,11 @@ export interface HarperLintResult {
 }
 
 export interface HarperOptions {
-  onResults?: (results: HarperLintResult[]) => void;
+  // `lintedText` is the exact plain-text snapshot Harper processed to produce
+  // these results. Callers use it to detect staleness: if the editor's current
+  // text doesn't match, lint-result-derived decorations would be mispositioned
+  // and should be suppressed until the next lint run catches up.
+  onResults?: (results: HarperLintResult[], lintedText: string) => void;
   onStatusChange?: (status: 'loading' | 'ready' | 'error') => void;
 }
 
@@ -101,7 +105,10 @@ export const HarperExtension = Extension.create<HarperOptions>({
 
               if (type === 'results') {
                 if (onResults) {
-                  onResults(results);
+                  // `lastText` is the snapshot that was posted to the worker
+                  // for this version; the version check above guarantees it
+                  // is still the text these results describe.
+                  onResults(results, lastText);
                 }
               }
             };

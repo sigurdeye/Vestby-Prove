@@ -155,6 +155,11 @@ const App = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
+  // Plain-text snapshot the current `lintResults` correspond to. If the
+  // editor's text has advanced past this, Harper-derived decorations are
+  // stale and the render effect will skip redispatching (PM's own mapping
+  // keeps the last good DecorationSet attached to the moving text).
+  const [lintedText, setLintedText] = useState('');
   const [showSidebar, setShowSidebar] = useState(true);
   const [spellcheckStatus, setSpellcheckStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
@@ -245,7 +250,21 @@ const App = () => {
   const [ignoredSpans, setIgnoredSpans] = useState<IgnoredSpan[]>(() => {
     try {
       const raw = localStorage.getItem(ignoredSpansStorageKey);
-      return raw ? JSON.parse(raw) : [];
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      // Defend against legacy entries (earlier schema used {start, end, text})
+      // and against corrupted data. Anything without valid numeric
+      // `from`/`to` is dropped rather than blowing up the editor.
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (e): e is IgnoredSpan =>
+              e &&
+              typeof e.from === 'number' &&
+              typeof e.to === 'number' &&
+              typeof e.text === 'string' &&
+              e.to > e.from
+          )
+        : [];
     } catch {
       return [];
     }
@@ -253,7 +272,11 @@ const App = () => {
   const [ignoredAll, setIgnoredAll] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem(ignoredAllStorageKey);
-      return raw ? JSON.parse(raw) : [];
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? parsed.filter((e: unknown): e is string => typeof e === 'string')
+        : [];
     } catch {
       return [];
     }
@@ -298,16 +321,18 @@ const App = () => {
       Typography,
       // Conditionally load spellchecker based on language selection
       ...(spellcheckLang === 'en' ? [HarperExtension.configure({
-        onResults: (results) => {
+        onResults: (results, text) => {
           setLintResults(results);
+          setLintedText(text);
         },
         onStatusChange: (status) => {
           setSpellcheckStatus(status);
         },
       })] : []),
       ...(spellcheckLang === 'no' ? [NorwegianExtension.configure({
-        onResults: (results) => {
+        onResults: (results, text) => {
           setLintResults(results);
+          setLintedText(text);
         },
         onStatusChange: (status) => {
           setSpellcheckStatus(status);
@@ -367,6 +392,7 @@ const App = () => {
   // Clear lint results when switching languages to avoid showing stale errors
   useEffect(() => {
     setLintResults([]);
+    setLintedText('');
     setSpellcheckStatus('loading');
   }, [spellcheckLang]);
 
@@ -417,9 +443,28 @@ const App = () => {
     return Math.min(Math.max(1, targetPos), Math.max(1, doc.content.size - 1));
   }, [editor]);
 
+  // Cache of the last filter result computed against a non-stale doc. While
+  // the user is mid-typing (Harper's debounced re-lint hasn't landed yet),
+  // this cache is returned as-is so both the sidebar list and the decoration
+  // effect keep showing a consistent, frozen view instead of briefly
+  // resurfacing ignored errors due to stale Harper offsets.
+  const lastGoodFilteredRef = useRef<HarperLintResult[]>([]);
+
   const filteredResults = React.useMemo(() => {
-    if (!editor || spellcheckLang === 'off') return [];
-    return lintResults.filter(result => {
+    if (!editor || spellcheckLang === 'off') {
+      lastGoodFilteredRef.current = [];
+      return [];
+    }
+
+    // Staleness guard: same principle as the decoration render effect.
+    // Harper's span offsets only make sense against the text it actually
+    // processed; if the doc has moved on, filtering would convert those
+    // offsets to the wrong PM positions and let ignored spans slip through.
+    const isStale =
+      lintedText !== '' && editor.state.doc.textContent !== lintedText;
+    if (isStale) return lastGoodFilteredRef.current;
+
+    const filtered = lintResults.filter(result => {
       // Hide style and word choice suggestions to focus on core grammar/spelling
       if (result.category === 'Style' || result.category === 'WordChoice') return false;
 
@@ -441,7 +486,10 @@ const App = () => {
 
       return !isSpanIgnored;
     });
-  }, [lintResults, ignoredSpans, ignoredAll, editor, getPos, spellcheckLang]);
+
+    lastGoodFilteredRef.current = filtered;
+    return filtered;
+  }, [lintResults, ignoredSpans, ignoredAll, editor, getPos, spellcheckLang, lintedText]);
 
   const [focusedErrorKey, setFocusedErrorKey] = useState<string | null>(null);
 
@@ -449,6 +497,18 @@ const App = () => {
     if (editor && editor.view) {
       const { state } = editor;
       const currentKey = spellcheckLang === 'no' ? norwegianKey : harperKey;
+
+      // Staleness guard: Harper's span offsets are plain-text offsets into
+      // the text it last processed. If the editor has been edited since,
+      // converting those offsets to PM positions will point at the wrong
+      // characters, which caused the "squigglies drift backwards while the
+      // user types before an ignored word" bug. When stale, skip the
+      // dispatch and let the plugin's own `oldState.map(tr.mapping, tr.doc)`
+      // keep the last good DecorationSet glued to the moving text until the
+      // next lint run catches up.
+      const isStale =
+        lintedText !== '' && state.doc.textContent !== lintedText;
+      if (isStale) return;
 
       if (filteredResults.length === 0) {
         const tr = state.tr.setMeta(currentKey, {
@@ -490,7 +550,7 @@ const App = () => {
       });
       editor.view.dispatch(tr);
     }
-  }, [filteredResults, editor, focusedErrorKey, getPos, spellcheckLang]);
+  }, [filteredResults, editor, focusedErrorKey, getPos, spellcheckLang, lintedText]);
 
   useEffect(() => {
     if (!editor) return;
@@ -548,19 +608,35 @@ const App = () => {
 
         let changed = false;
         const next: IgnoredSpan[] = [];
+        const docSize = transaction.doc.content.size;
 
         for (const span of prev) {
           // assoc=1 on `from` and assoc=-1 on `to` so insertions at the
           // boundaries stay outside the ignored range (don't expand it).
-          const from = transaction.mapping.map(span.from, 1);
-          const to = transaction.mapping.map(span.to, -1);
+          const rawFrom = transaction.mapping.map(span.from, 1);
+          const rawTo = transaction.mapping.map(span.to, -1);
+
+          // Clamp to valid PM bounds. Persisted spans can outlive the doc
+          // they were recorded against (content wiped, switched routes,
+          // etc.), and `mapping.map` happily returns positions past the end.
+          // `textBetween` will then crash when it tries to read a node
+          // that doesn't exist — which is what caused the gray-screen bug.
+          const from = Math.min(Math.max(0, rawFrom), docSize);
+          const to = Math.min(Math.max(0, rawTo), docSize);
 
           if (to <= from) {
             changed = true;
             continue;
           }
 
-          const currentText = transaction.doc.textBetween(from, to);
+          let currentText: string;
+          try {
+            currentText = transaction.doc.textBetween(from, to);
+          } catch {
+            changed = true;
+            continue;
+          }
+
           if (currentText !== span.text) {
             changed = true;
             continue;
