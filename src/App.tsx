@@ -32,6 +32,10 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 // Spellcheck language options
 type SpellcheckLanguage = 'en' | 'no' | 'off';
 
+// An ignored lint range, tracked by ProseMirror positions so it follows
+// the text as the document is edited (via tr.mapping remapping).
+type IgnoredSpan = { from: number; to: number; text: string };
+
 // Custom Font Size Extension
 const FontSize = Extension.create({
   name: 'fontSize',
@@ -151,7 +155,6 @@ const App = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [lintResults, setLintResults] = useState<HarperLintResult[]>([]);
-  const [ignoredSpans, setIgnoredSpans] = useState<{ start: number, end: number, text: string }[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [spellcheckStatus, setSpellcheckStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
@@ -233,6 +236,44 @@ const App = () => {
   }, []);
 
   const contentStorageKey = getContentStorageKey(window.location.pathname);
+  const ignoredSpansStorageKey = `${contentStorageKey}:ignored-spans`;
+  const ignoredAllStorageKey = `${contentStorageKey}:ignored-all`;
+
+  // Ignored ranges are stored as ProseMirror positions and kept current via
+  // tr.mapping on every doc transaction (see effect below). Both lists are
+  // persisted per document path so they survive page reloads.
+  const [ignoredSpans, setIgnoredSpans] = useState<IgnoredSpan[]>(() => {
+    try {
+      const raw = localStorage.getItem(ignoredSpansStorageKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [ignoredAll, setIgnoredAll] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(ignoredAllStorageKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ignoredSpansStorageKey, JSON.stringify(ignoredSpans));
+    } catch (e) {
+      console.error('Failed to persist ignoredSpans:', e);
+    }
+  }, [ignoredSpans, ignoredSpansStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ignoredAllStorageKey, JSON.stringify(ignoredAll));
+    } catch (e) {
+      console.error('Failed to persist ignoredAll:', e);
+    }
+  }, [ignoredAll, ignoredAllStorageKey]);
 
   const updateSelectedWordCount = useCallback((editorInstance: Editor) => {
     const { from, to } = editorInstance.state.selection;
@@ -384,17 +425,23 @@ const App = () => {
 
       if (result.category === 'Capitalization' && result.suggestions.includes('IDE')) return false;
 
-      const start = getPos(result.span.start);
-      const end = getPos(result.span.end, true);
-      const currentText = editor.state.doc.textBetween(start, end);
+      const startPos = getPos(result.span.start);
+      const endPos = getPos(result.span.end, true);
+      const currentText = editor.state.doc.textBetween(startPos, endPos);
 
-      return !ignoredSpans.some(ignored =>
-        ignored.start === result.span.start &&
-        ignored.end === result.span.end &&
-        ignored.text === currentText
+      // "Ignore all" hides every future occurrence of the exact text.
+      if (ignoredAll.includes(currentText)) return false;
+
+      // Positional ignore: compare against stored PM positions (kept current
+      // by the transaction-mapping effect) AND the original text, so editing
+      // the word itself re-enables flagging.
+      const isSpanIgnored = ignoredSpans.some(s =>
+        s.from === startPos && s.to === endPos && s.text === currentText
       );
+
+      return !isSpanIgnored;
     });
-  }, [lintResults, ignoredSpans, editor, getPos, spellcheckLang]);
+  }, [lintResults, ignoredSpans, ignoredAll, editor, getPos, spellcheckLang]);
 
   const [focusedErrorKey, setFocusedErrorKey] = useState<string | null>(null);
 
@@ -484,6 +531,58 @@ const App = () => {
       }
     }
   }, [focusedErrorKey, showSidebar]);
+
+  // Keep stored ignored spans in sync with document edits. ProseMirror's
+  // tr.mapping knows exactly how positions shift across any change, so we
+  // remap each stored range. If the range collapses or the underlying text
+  // no longer matches what we originally ignored (user edited the word
+  // itself), we drop it so a future typo in the same spot gets flagged again.
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleTransaction = ({ transaction }: { transaction: any }) => {
+      if (!transaction.docChanged) return;
+
+      setIgnoredSpans(prev => {
+        if (prev.length === 0) return prev;
+
+        let changed = false;
+        const next: IgnoredSpan[] = [];
+
+        for (const span of prev) {
+          // assoc=1 on `from` and assoc=-1 on `to` so insertions at the
+          // boundaries stay outside the ignored range (don't expand it).
+          const from = transaction.mapping.map(span.from, 1);
+          const to = transaction.mapping.map(span.to, -1);
+
+          if (to <= from) {
+            changed = true;
+            continue;
+          }
+
+          const currentText = transaction.doc.textBetween(from, to);
+          if (currentText !== span.text) {
+            changed = true;
+            continue;
+          }
+
+          if (from !== span.from || to !== span.to) {
+            changed = true;
+            next.push({ from, to, text: span.text });
+          } else {
+            next.push(span);
+          }
+        }
+
+        return changed ? next : prev;
+      });
+    };
+
+    editor.on('transaction', handleTransaction);
+    return () => {
+      editor.off('transaction', handleTransaction);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (editor) {
@@ -1114,23 +1213,40 @@ const App = () => {
                                           result.category}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             const start = getPos(result.span.start);
                             const end = getPos(result.span.end, true);
-                            setIgnoredSpans(prev => [...prev, {
-                              start: result.span.start,
-                              end: result.span.end,
-                              text: editor.state.doc.textBetween(start, end)
-                            }]);
-                            // Return focus to editor after ignoring
+                            const text = editor.state.doc.textBetween(start, end);
+                            setIgnoredSpans(prev => [
+                              ...prev,
+                              { from: start, to: end, text },
+                            ]);
                             setTimeout(() => editor.chain().focus().run(), 10);
                           }}
                           className="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-red-100 transition-colors"
+                          title="Ignorer denne forekomsten"
                         >
                           Ignorer
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const start = getPos(result.span.start);
+                            const end = getPos(result.span.end, true);
+                            const text = editor.state.doc.textBetween(start, end);
+                            if (!text) return;
+                            setIgnoredAll(prev =>
+                              prev.includes(text) ? prev : [...prev, text]
+                            );
+                            setTimeout(() => editor.chain().focus().run(), 10);
+                          }}
+                          className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors"
+                          title="Ignorer alle forekomster av dette ordet i hele dokumentet"
+                        >
+                          Ignorer alle
                         </button>
                       </div>
                     </div>
@@ -1331,7 +1447,8 @@ const App = () => {
                         <p className="text-sm font-normal text-green-600">
                           Flott, filen din ble lagret som{' '}
                           <span className="font-mono break-all">{savedFilename}</span>{' '}
-                          i nedlastingsmappa di.
+                          i nedlastingsmappa di. Nå kan du gå tilbake til oppgaven og trykke
+                          på innleveringslenka.
                         </p>
                       </div>
                     </div>
